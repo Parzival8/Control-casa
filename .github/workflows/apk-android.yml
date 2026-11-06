@@ -29,6 +29,9 @@ jobs:
   apk:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    env:
+      # Se muestra en la app (Ajustes) para saber qué APK hay instalado.
+      NUMERO_COMPILACION: ${{ github.run_number }}
     steps:
       - name: Descargar el código
         uses: actions/checkout@v4

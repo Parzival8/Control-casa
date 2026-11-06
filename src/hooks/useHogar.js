@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { escucharHogar } from '../data/hogares';
 
-/** Reintentos antes de concluir que ya no tienes acceso al hogar. */
-const REINTENTOS = 3;
-const ESPERA_MS = 1500;
+/** Reintentos automáticos antes de concluir que ya no tienes acceso al hogar. */
+const REINTENTOS = 5;
+const ESPERA_MS = 2000;
+
+const SIN_DATOS = { clave: null, hogar: null, sinAcceso: false, motivo: null };
 
 /**
  * Hogar en tiempo real.
@@ -15,47 +17,65 @@ const ESPERA_MS = 1500;
  *
  * @param {string|null} hogarId
  * @returns {{ hogar: import('../data/hogares').Hogar|null, cargando: boolean,
- *             sinAcceso: boolean }}
+ *             sinAcceso: boolean, motivo: string|null, reintentar: () => void }}
  *   sinAcceso: el hogar ya no existe o te han quitado de él.
+ *   motivo: detalle técnico del último error (para diagnosticar).
+ *   reintentar: vuelve a empezar (botón "Reintentar").
  */
 export function useHogar(hogarId) {
-  const [estado, setEstado] = useState({ id: null, hogar: null, sinAcceso: false });
-  // Cambiar este número vuelve a suscribirse (un reintento).
-  const [intento, setIntento] = useState({ id: null, numero: 0 });
-  const numeroIntento = intento.id === hogarId ? intento.numero : 0;
+  // Cada "ronda" es una tanda de intentos; el botón Reintentar empieza otra.
+  const [ronda, setRonda] = useState(0);
+  // Número de intento dentro de la ronda actual (0 = el primero).
+  const [intento, setIntento] = useState({ clave: null, numero: 0 });
+  const [estado, setEstado] = useState(SIN_DATOS);
+
+  // Identifica la escucha actual: si cambia el hogar o la ronda, se empieza de cero.
+  const clave = hogarId ? `${hogarId}#${ronda}` : null;
+  const numero = intento.clave === clave ? intento.numero : 0;
 
   useEffect(() => {
-    if (!hogarId) return undefined;
+    if (!clave) return undefined;
     let temporizador;
     const dejarDeEscuchar = escucharHogar(
       hogarId,
       (hogar, { desdeCache }) => {
         // "No existe" según la caché del móvil no es definitivo: esperar al servidor.
         if (hogar === null && desdeCache) return;
-        setEstado({ id: hogarId, hogar, sinAcceso: hogar === null });
+        setEstado({
+          clave,
+          hogar,
+          sinAcceso: hogar === null,
+          motivo: hogar === null ? 'el hogar no existe' : null,
+        });
       },
       (error) => {
         const denegado = String(error?.code ?? '').includes('permission-denied');
-        if (denegado && numeroIntento < REINTENTOS) {
-          temporizador = setTimeout(
-            () => setIntento({ id: hogarId, numero: numeroIntento + 1 }),
-            ESPERA_MS,
-          );
+        if (denegado && numero < REINTENTOS) {
+          temporizador = setTimeout(() => setIntento({ clave, numero: numero + 1 }), ESPERA_MS);
           return;
         }
-        setEstado((anterior) => ({ ...anterior, id: hogarId, sinAcceso: denegado }));
+        setEstado({
+          clave,
+          hogar: null,
+          sinAcceso: true,
+          motivo: String(error?.code ?? error?.message ?? 'error desconocido'),
+        });
       },
     );
     return () => {
       clearTimeout(temporizador);
       dejarDeEscuchar();
     };
-  }, [hogarId, numeroIntento]);
+  }, [clave, hogarId, numero]);
 
-  const actual = estado.id === hogarId;
+  const reintentar = useCallback(() => setRonda((r) => r + 1), []);
+
+  const actual = estado.clave === clave;
   return {
     hogar: actual ? estado.hogar : null,
     cargando: Boolean(hogarId) && !actual,
     sinAcceso: actual && estado.sinAcceso,
+    motivo: actual ? estado.motivo : null,
+    reintentar,
   };
 }
