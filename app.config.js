@@ -33,6 +33,17 @@ module.exports = {
       'expo-router',
       '@react-native-firebase/app',
       '@react-native-firebase/auth',
+      [
+        'expo-build-properties',
+        {
+          android: {
+            // Firebase Android (BoM 35, que trae @react-native-firebase 27)
+            // viene compilado con Kotlin 2.4; React Native 0.88 usa 2.2 por
+            // defecto y la compilación falla. Por eso se fija aquí.
+            kotlinVersion: '2.4.0',
+          },
+        },
+      ],
     ],
     experiments: {
       typedRoutes: false,
