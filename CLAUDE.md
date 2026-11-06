@@ -22,6 +22,7 @@ El prototipo anterior en formato PWA (Vite) se eliminó en la Fase 0; sigue en e
 - **"Pagado por" es opcional** (decisión del usuario, Fase 2): `pagadoPor` es un uid o `null` ("Sin indicar", lo predeterminado). En la Fase 4 hay que decidir con el usuario cómo cuentan en el reparto los gastos sin indicar.
 - Gastos sin conexión: crear/editar/borrar **no esperan** al servidor (Firestore los guarda en el móvil y los sincroniza); los errores del servidor se avisan con un `Alert`. La persistencia offline de Firestore viene activada por defecto en Android.
 - Las escrituras que cambian `users/{uid}.hogarId` se hacen después de que el servidor confirme el hogar (si no, la app escucharía el hogar antes de tener permiso).
+- Categorías (Fase 3): una categoría **con gastos solo se archiva**; sin gastos se puede eliminar (la app lo comprueba antes; las reglas permiten borrar a cualquier miembro). Las archivadas no se ofrecen al apuntar, pero los gastos antiguos las siguen mostrando.
 - Fecha del gasto: selector nativo `@react-native-community/datetimepicker` (botones Hoy/Ayer/Otro día).
 - Formato de moneda: `formatearImporte` lo hace a mano en vez de con `Intl.NumberFormat`, porque Hermes (el motor JS del móvil) no garantiza `useGrouping: 'always'` y en es-ES 4 cifras saldrían sin punto.
 
@@ -42,6 +43,7 @@ app/                     # pantallas (Expo Router)
   (app)/                 # con hogar: escucha hogar y categorías (contexto)
     (tabs)/              # inicio, estadísticas, categorías, ajustes
     gasto/               # nuevo.js, [id].js (editar/eliminar)
+    categoria/           # nueva.js, [id].js (editar/archivar/eliminar)
 src/
   data/                  # TODO el acceso a Firebase vive aquí
     auth.js  hogares.js  gastos.js  categorias.js  recurrentes.js

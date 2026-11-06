@@ -53,6 +53,11 @@ jest.mock('../../src/data/gastos', () => ({
 }));
 
 jest.mock('../../src/data/categorias', () => ({
+  crearCategoria: jest.fn(() => 'nueva'),
+  editarCategoria: jest.fn(),
+  archivarCategoria: jest.fn(),
+  borrarCategoria: jest.fn(),
+  categoriaTieneGastos: jest.fn(() => Promise.resolve(false)),
   escucharCategorias: (hogarId, ok) => {
     ok([
       { id: 'luz', nombre: 'Luz', icono: '💡', color: '#f59e0b', archivada: false },
@@ -228,9 +233,34 @@ describe('gastos', () => {
     expect(screen.getByText(`1.247,06${NBSP}€`)).toBeTruthy();
     expect(screen.getByText('2 gastos')).toBeTruthy();
     expect(screen.getByText('Factura')).toBeTruthy();
-    expect(screen.getByText(`12,50${NBSP}€`)).toBeTruthy();
+    // En la lista y en el resumen por categoría.
+    expect(screen.getAllByText(`12,50${NBSP}€`)).toHaveLength(2);
     // Sin nota se muestra la categoría.
     expect(screen.getByText('Supermercado')).toBeTruthy();
+  });
+
+  test('el resumen por categoría aparece con sus importes', async () => {
+    await renderRouter(APP, { initialUrl: '/' });
+    expect(screen.getByText('Por categoría')).toBeTruthy();
+    expect(screen.getByText('🛒 Supermercado')).toBeTruthy();
+    expect(screen.getByText('💡 Luz')).toBeTruthy();
+  });
+
+  test('tocar una categoría del resumen filtra la lista', async () => {
+    await renderRouter(APP, { initialUrl: '/' });
+    await fireEvent.press(screen.getByText('💡 Luz'));
+    expect(await screen.findByText(`Mostrando 1 de 2 · 12,50${NBSP}€`)).toBeTruthy();
+    await fireEvent.press(screen.getByText('Quitar filtros'));
+    expect(screen.queryByText(/Mostrando/)).toBeNull();
+  });
+
+  test('filtrar por quién pagó, incluido "Sin indicar"', async () => {
+    await renderRouter(APP, { initialUrl: '/' });
+    await fireEvent.press(screen.getByText('Filtrar gastos'));
+    await fireEvent.press(screen.getByLabelText('Sin indicar'));
+    expect(await screen.findByText(`Mostrando 1 de 2 · 1.234,56${NBSP}€`)).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Blas'));
+    expect(await screen.findByText(`Mostrando 1 de 2 · 12,50${NBSP}€`)).toBeTruthy();
   });
 
   test('cambiar al mes anterior (sin gastos) pone el total a cero', async () => {
@@ -316,5 +346,82 @@ describe('gastos', () => {
   test('si el gasto ya no existe, lo dice', async () => {
     await renderRouter(APP, { initialUrl: '/gasto/no-existe' });
     expect(screen.getByText('Este gasto ya no existe')).toBeTruthy();
+  });
+});
+
+describe('categorías', () => {
+  beforeEach(() => {
+    falso.usuario = ana;
+    falso.perfil = { nombre: 'Ana', email: ana.email, hogarId: 'h1' };
+    falso.hogar = hogar;
+  });
+
+  test('la pestaña muestra las activas y oculta las archivadas', async () => {
+    await renderRouter(APP, { initialUrl: '/categorias' });
+    expect(screen.getByText('Luz')).toBeTruthy();
+    expect(screen.queryByText('Archivada')).toBeNull();
+    await fireEvent.press(screen.getByText('Ver archivadas (1)'));
+    expect(screen.getByText('Archivada')).toBeTruthy();
+  });
+
+  test('crear una categoría con presupuesto', async () => {
+    const { crearCategoria } = require('../../src/data/categorias');
+    const app = await renderRouter(APP, { initialUrl: '/categorias' });
+    await fireEvent.press(screen.getByText('+  Nueva categoría'));
+    await waitFor(() => expect(app.getPathname()).toBe('/categoria/nueva'));
+    await fireEvent.changeText(screen.getByLabelText('Nombre'), 'Mascotas');
+    await fireEvent.press(screen.getByLabelText('Icono 🐶'));
+    await fireEvent.changeText(screen.getByLabelText('Presupuesto mensual en € (opcional)'), '50');
+    await fireEvent.press(screen.getByText('Guardar'));
+    expect(crearCategoria).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hogarId: 'h1',
+        datos: expect.objectContaining({ nombre: 'Mascotas', icono: '🐶', presupuestoMensual: 5000 }),
+      }),
+    );
+  });
+
+  test('no deja repetir el nombre de otra categoría', async () => {
+    const { crearCategoria } = require('../../src/data/categorias');
+    await renderRouter(APP, { initialUrl: '/categoria/nueva' });
+    await fireEvent.changeText(screen.getByLabelText('Nombre'), 'luz');
+    await fireEvent.press(screen.getByText('Guardar'));
+    expect(await screen.findByText('Ya hay una categoría con ese nombre.')).toBeTruthy();
+    expect(crearCategoria).not.toHaveBeenCalled();
+  });
+
+  test('archivar una categoría', async () => {
+    const { archivarCategoria } = require('../../src/data/categorias');
+    await renderRouter(APP, { initialUrl: '/categoria/luz' });
+    await fireEvent.press(screen.getByText('Archivar categoría'));
+    expect(archivarCategoria).toHaveBeenCalledWith(
+      expect.objectContaining({ categoriaId: 'luz', archivada: true }),
+    );
+  });
+
+  test('una categoría con gastos no se elimina: propone archivarla', async () => {
+    const { Alert } = require('react-native');
+    const datos = require('../../src/data/categorias');
+    datos.categoriaTieneGastos.mockResolvedValueOnce(true);
+    const alerta = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    await renderRouter(APP, { initialUrl: '/categoria/luz' });
+    await fireEvent.press(screen.getByText('Eliminar categoría'));
+    await waitFor(() => expect(alerta).toHaveBeenCalled());
+    expect(alerta.mock.calls[0][0]).toBe('Esta categoría tiene gastos');
+    expect(datos.borrarCategoria).not.toHaveBeenCalled();
+    alerta.mockRestore();
+  });
+
+  test('una categoría sin gastos se elimina tras confirmar', async () => {
+    const { Alert } = require('react-native');
+    const datos = require('../../src/data/categorias');
+    const alerta = jest.spyOn(Alert, 'alert').mockImplementation((t, m, botones) => {
+      botones.find((b) => b.text === 'Eliminar')?.onPress();
+    });
+    await renderRouter(APP, { initialUrl: '/categoria/luz' });
+    await fireEvent.press(screen.getByText('Eliminar categoría'));
+    await waitFor(() => expect(datos.borrarCategoria).toHaveBeenCalled());
+    expect(alerta.mock.calls[0][0]).toBe('¿Eliminar «Luz»?');
+    alerta.mockRestore();
   });
 });

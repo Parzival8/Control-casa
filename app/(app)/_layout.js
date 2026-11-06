@@ -58,6 +58,8 @@ export default function LayoutApp() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="gasto/nuevo" options={{ title: 'Nuevo gasto' }} />
         <Stack.Screen name="gasto/[id]" options={{ title: 'Editar gasto' }} />
+        <Stack.Screen name="categoria/nueva" options={{ title: 'Nueva categoría' }} />
+        <Stack.Screen name="categoria/[id]" options={{ title: 'Editar categoría' }} />
       </Stack>
     </ProveedorHogar>
   );

@@ -678,8 +678,16 @@ describe('categorías y recurrentes', () => {
     );
   });
 
-  test('las categorías no las borra un miembro cualquiera', async () => {
-    await assertFails(deleteDoc(doc(como('blas'), 'hogares/h1/categorias/luz')));
+  test('un miembro puede borrar categorías; un ajeno no', async () => {
+    await assertFails(deleteDoc(doc(como('carla'), 'hogares/h1/categorias/luz')));
+    await assertSucceeds(deleteDoc(doc(como('blas'), 'hogares/h1/categorias/luz')));
+  });
+
+  test('archivar y recuperar una categoría', async () => {
+    const ref = doc(como('blas'), 'hogares/h1/categorias/luz');
+    await assertSucceeds(updateDoc(ref, { archivada: true }));
+    await assertSucceeds(updateDoc(ref, { archivada: false }));
+    await assertFails(updateDoc(ref, { archivada: 'si' }));
   });
 
   test('gastos recurrentes válidos e inválidos', async () => {
