@@ -55,6 +55,8 @@ Las tareas marcadas con 👤 solo puede hacerlas el usuario (Claude Code no tien
 ---
 
 ## Fase 2: Gastos compartidos en tiempo real
+
+> ✅ **Completada** (6/11/2026). Probada por el usuario con el APK compilación 14 en dos móviles: apuntar, editar y borrar en tiempo real, sin conexión, formato de importes y cambio de mes. "Pagado por" pasó a ser opcional a petición del usuario.
 **Tareas**
 - `src/data/gastos.js`: alta, edición, borrado y escucha en tiempo real de los gastos de un mes.
 - Pantalla Inicio: total del mes, lista, navegación entre meses, botón (+).
