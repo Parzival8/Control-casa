@@ -83,8 +83,8 @@ Regla clave: **ninguna pantalla ni componente importa Firebase directamente**; s
 - `npm run lint`: ESLint con la configuración de Expo.
 - `npm run doctor`: `expo-doctor`. Desde Claude Code hay que usar `EXPO_OFFLINE=1` porque la red de la sesión bloquea `exp.host`/`api.expo.dev`; por la misma razón, instalar paquetes con `EXPO_OFFLINE=1 npx expo install <paquete>`.
 - `npm run test:rules`: tests de reglas (`tests/reglas`) contra el emulador de Firestore (necesita Java). Proyecto `demo-control-casa`, nunca toca el real.
-- Publicar reglas (lo hace el usuario desde su ordenador, en la carpeta del repositorio): `firebase deploy --only firestore:rules` (`.firebaserc` ya apunta a `control-casa-7df4f`).
-- GitHub Actions: `pruebas.yml` (lint + todos los tests, en cada push) y `apk-android.yml` (APK).
+- Publicar reglas: **automático** con GitHub Actions (`reglas.yml`) al cambiar `firestore.rules` en main, tras pasar sus tests. Usa el secreto `FIREBASE_CUENTA_SERVICIO` (cuenta de servicio solo con *Firebase Rules Admin* y *Service Usage Consumer*). A mano, alternativa: `firebase deploy --only firestore:rules` desde la carpeta del repositorio, o pegarlas en la consola de Firebase → Firestore → Reglas.
+- GitHub Actions: `pruebas.yml` (lint + todos los tests, en cada push), `apk-android.yml` (APK) y `reglas.yml` (publica las reglas).
 
 ## Flujo de trabajo
 - Trabajar **una fase cada vez**, siguiendo `PLAN_FASES.md`.
