@@ -74,6 +74,8 @@ Las tareas marcadas con 👤 solo puede hacerlas el usuario (Claude Code no tien
 ---
 
 ## Fase 3: Categorías y resumen
+
+> ✅ **Completada** (6/11/2026). Probada por el usuario con el APK compilación 16 en dos móviles: crear, editar, archivar, recuperar y eliminar categorías (con gastos solo se archivan), resumen por categoría y filtros. Desde aquí las reglas se publican solas con GitHub Actions (`reglas.yml`).
 **Tareas**
 - Pantalla Categorías compartida: crear, editar, archivar.
 - Una categoría con gastos no se puede borrar, solo archivar.
