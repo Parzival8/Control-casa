@@ -108,6 +108,27 @@ export function borrarGasto({ hogarId, gastoId, alFallar }) {
 }
 
 /**
+ * Escucha en tiempo real los gastos de un periodo de meses (ambos incluidos).
+ * Se usa para las estadísticas de los últimos 12 meses: está acotado, nunca
+ * se cargan todos los gastos del hogar.
+ * @param {string} hogarId
+ * @param {string} desdeMes "YYYY-MM"
+ * @param {string} hastaMes "YYYY-MM"
+ * @param {(gastos: Gasto[]) => void} alCambiar
+ * @param {(error: Error) => void} alFallar
+ * @returns {() => void}
+ */
+export function escucharGastosEntre(hogarId, desdeMes, hastaMes, alCambiar, alFallar) {
+  const consulta = query(
+    coleccionGastos(hogarId),
+    where('fecha', '>=', rangoDelMes(desdeMes).desde),
+    where('fecha', '<=', rangoDelMes(hastaMes).hasta),
+    orderBy('fecha', 'desc'),
+  );
+  return onSnapshot(consulta, (instantanea) => alCambiar(instantanea.docs.map(aGasto)), alFallar);
+}
+
+/**
  * Escucha en tiempo real los gastos de un mes (nunca carga todos).
  * @param {string} hogarId
  * @param {string} mes "YYYY-MM"
