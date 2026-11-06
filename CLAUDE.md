@@ -15,7 +15,8 @@ El prototipo anterior en formato PWA (Vite) se eliminó en la Fase 0; sigue en e
 - Expo: cuenta `parzival8`, proyecto `control-casa`, id `a8fe5364-9e2b-4434-86f9-c2f05bd2f145`.
 - Firebase: proyecto `control-casa-7df4f`, Firestore en `eur3`, Authentication con email/contraseña.
 - La configuración está en `app.config.js` (no `app.json`) para leer `google-services.json` desde la variable de EAS `GOOGLE_SERVICES_JSON` (tipo archivo, visibilidad *Secret*, en los tres entornos).
-- **Builds**: el usuario los lanza desde expo.dev con **"Build from GitHub"** (repositorio ya conectado), eligiendo rama y perfil. No usa ordenador.
+- **Builds de prueba (APK)**: los compila **GitHub Actions** (`.github/workflows/apk-android.yml`) con cada push o con "Run workflow", y los publica en **Releases** para descargarlos desde el móvil. Necesita el secreto de Actions `GOOGLE_SERVICES_JSON` (contenido completo del archivo). El APK va firmado con la clave de depuración de Expo: vale para probar, no para Play. El usuario no usa ordenador.
+- EAS (`eas.json`, botón "Build from GitHub" en expo.dev) queda como alternativa y para el AAB de producción en la Fase 7.
 - Formato de moneda: `formatearImporte` lo hace a mano en vez de con `Intl.NumberFormat`, porque Hermes (el motor JS del móvil) no garantiza `useGrouping: 'always'` y en es-ES 4 cifras saldrían sin punto.
 
 ## Stack
@@ -63,7 +64,8 @@ Regla clave: **ninguna pantalla ni componente importa Firebase directamente**; s
 
 ## Comandos
 - `npm start` (`expo start --dev-client`): servidor de desarrollo para el build de desarrollo instalado en el móvil.
-- Build de desarrollo: en expo.dev → proyecto → **Build from GitHub** → plataforma Android, perfil `development`. Equivale a `eas build --profile development --platform android`.
+- APK de prueba: GitHub → pestaña **Actions** → "APK Android" → **Run workflow** (o cualquier push). El APK aparece en **Releases**.
+- Alternativa con EAS: en expo.dev → **Build from GitHub**, perfil `preview` (equivale a `eas build --profile preview --platform android`).
 - Perfiles de `eas.json`: `development` (APK con dev client), `preview` (APK normal para probar), `production` (AAB para Google Play).
 - `npm test`: tests de lógica con Jest.
 - `npm run lint`: ESLint con la configuración de Expo.
