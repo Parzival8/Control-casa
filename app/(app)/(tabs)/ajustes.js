@@ -1,15 +1,15 @@
 import { Alert, StyleSheet, Text } from 'react-native';
 
-import { Boton } from '../../src/components/Boton';
-import { Pantalla } from '../../src/components/Pantalla';
-import { Tarjeta } from '../../src/components/Tarjeta';
-import { TarjetaInvitacion } from '../../src/components/TarjetaInvitacion';
-import { Version } from '../../src/components/Version';
-import { cerrarSesion } from '../../src/data/auth';
-import { useColores } from '../../src/hooks/useColores';
-import { useHogarActual } from '../../src/hooks/useHogarActual';
-import { useSesion } from '../../src/hooks/useSesion';
-import { listaMiembros } from '../../src/utils/textoInvitacion';
+import { Boton } from '../../../src/components/Boton';
+import { Pantalla } from '../../../src/components/Pantalla';
+import { Tarjeta } from '../../../src/components/Tarjeta';
+import { TarjetaInvitacion } from '../../../src/components/TarjetaInvitacion';
+import { Version } from '../../../src/components/Version';
+import { cerrarSesion } from '../../../src/data/auth';
+import { useColores } from '../../../src/hooks/useColores';
+import { useHogarActual } from '../../../src/hooks/useHogarActual';
+import { useSesion } from '../../../src/hooks/useSesion';
+import { listaMiembros } from '../../../src/utils/textoInvitacion';
 
 export default function Ajustes() {
   const colores = useColores();

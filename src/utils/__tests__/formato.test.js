@@ -73,3 +73,21 @@ describe('fechas', () => {
     expect(mesActual(new Date(2026, 11, 31))).toBe('2026-12');
   });
 });
+
+describe('centimosATexto e isoAFecha', () => {
+  test('céntimos a texto editable (ida y vuelta)', () => {
+    const { centimosATexto, textoACentimos } = require('../formato');
+    expect(centimosATexto(123456)).toBe('1234,56');
+    expect(centimosATexto(5)).toBe('0,05');
+    expect(centimosATexto(null)).toBe('');
+    for (const c of [1, 99, 100, 1250, 123456, 99999999]) {
+      expect(textoACentimos(centimosATexto(c))).toBe(c);
+    }
+  });
+
+  test('isoAFecha conserva el día', () => {
+    const { fechaAISO, isoAFecha } = require('../formato');
+    expect(fechaAISO(isoAFecha('2026-03-29'))).toBe('2026-03-29');
+    expect(fechaAISO(isoAFecha('2026-12-31'))).toBe('2026-12-31');
+  });
+});

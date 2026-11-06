@@ -42,7 +42,7 @@ invitaciones/{codigo}
 | categoriaId | string | |
 | fecha | string | `YYYY-MM-DD` |
 | nota | string | opcional |
-| pagadoPor | string (uid) | miembro que pagó, por defecto quien lo crea |
+| pagadoPor | string (uid) \| null | **opcional**: miembro que pagó; `null` = sin indicar (valor por defecto) |
 | creadoPor | string (uid) | quién lo apuntó |
 | editadoPor | string (uid) | último que lo modificó |
 | recurrenteId | string \| null | si lo generó un gasto fijo |
@@ -53,7 +53,7 @@ invitaciones/{codigo}
 Se crean las categorías iniciales al crear el hogar: Hipoteca/Alquiler 🏠, Luz 💡, Agua 🚰, Gas ⛽, Internet y móvil 📶, Comunidad 🏢, Supermercado 🛒, Restaurantes 🍽️, Transporte 🚗, Salud ⚕️, Ocio 🎬, Ropa 👕, Hogar y reformas 🔧, Seguros 🛡️, Otros 📦. Las categorías son **compartidas por el hogar**.
 
 ### Gasto recurrente
-`importe, categoriaId, diaDelMes (1-28), nota, pagadoPor, activo`.
+`importe, categoriaId, diaDelMes (1-28), nota, pagadoPor (opcional, uid o null), activo`.
 Se generan al abrir la app. **Id determinista** del gasto generado: `{recurrenteId}_{YYYY-MM}`, de modo que si dos miembros abren la app a la vez no se duplica.
 
 ## 5. Seguridad (reglas de Firestore)
@@ -83,7 +83,7 @@ Dos opciones grandes: "Crear hogar" y "Unirme con código".
 - Filtros: por categoría y por quién pagó.
 
 ### Añadir / editar gasto
-Importe (teclado numérico, enfocado al abrir), categoría en cuadrícula de iconos, fecha (hoy por defecto), nota opcional, "pagado por" (miembros del hogar). En edición: botón eliminar.
+Importe (teclado numérico, enfocado al abrir), categoría en cuadrícula de iconos, fecha (hoy por defecto), nota opcional, "pagado por" opcional (miembros del hogar o "Sin indicar", que es lo predeterminado). En edición: botón eliminar.
 
 ### Estadísticas
 - Donut: gasto por categoría del mes.

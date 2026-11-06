@@ -42,7 +42,7 @@ function Navegacion() {
         <Stack.Screen name="(hogar)" />
       </Stack.Protected>
       <Stack.Protected guard={conSesion && conHogar}>
-        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(app)" />
       </Stack.Protected>
     </Stack>
   );
