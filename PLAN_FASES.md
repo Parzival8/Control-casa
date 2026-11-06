@@ -36,6 +36,8 @@ Las tareas marcadas con 👤 solo puede hacerlas el usuario (Claude Code no tien
 ---
 
 ## Fase 1: Cuentas y hogar compartido
+
+> ✅ **Completada** (6/11/2026). Probada por el usuario con el APK compilación 12 en dos móviles: registro, inicio de sesión, recuperar contraseña, sesión persistente, crear hogar, unirse con código, códigos inválidos y regenerados, errores en español. Reglas publicadas y con 54 tests en el emulador.
 **Tareas**
 - Registro, login, cierre de sesión y recuperación de contraseña (`src/data/auth.js`), con la sesión persistente.
 - Documento `users/{uid}` al registrarse.
