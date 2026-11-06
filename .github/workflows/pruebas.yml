@@ -1,0 +1,45 @@
+# Ejecuta todos los tests en cada cambio: lógica, navegación y reglas de
+# seguridad de Firestore (con el emulador de Firebase, que necesita Java).
+
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar Java 21 (para el emulador de Firebase)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests de lógica y navegación
+        run: npm test
+
+      - name: Tests de reglas de Firestore (emulador)
+        run: npm run test:rules

@@ -11,7 +11,8 @@ export const temas = {
     textoSobrePrimario: '#ffffff',
     ok: '#15803d',
     error: '#b91c1c',
-    borde: '#e2e8f0',
+    fondoError: '#fee2e2',
+    borde: '#cbd5e1',
   },
   oscuro: {
     fondo: '#0b1120',
@@ -21,7 +22,8 @@ export const temas = {
     primario: '#60a5fa',
     textoSobrePrimario: '#0b1120',
     ok: '#4ade80',
-    error: '#f87171',
+    error: '#fca5a5',
+    fondoError: '#450a0a',
     borde: '#334155',
   },
 };

@@ -1,0 +1,317 @@
+rules_version = '2';
+
+// Reglas de seguridad de Control Casa (ver ESPECIFICACION.md, sección 5).
+// Son la protección REAL de los datos: la app puede tener fallos, pero estas
+// reglas se aplican en el servidor de Firebase a cualquier petición.
+//
+// Resumen:
+// - Sin sesión no se lee ni escribe nada.
+// - users/{uid}: cada usuario solo ve y edita su propio documento.
+// - hogares/{id} y sus subcolecciones: solo para los miembros.
+// - Unirse a un hogar: solo con una invitación válida, aportando el código y
+//   añadiéndose únicamente a uno mismo.
+// - El creador puede expulsar, regenerar el código y borrar el hogar.
+// - invitaciones/{codigo}: se pueden leer por código exacto, nunca listar.
+// - Todo lo que no se permite expresamente queda denegado.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Funciones de ayuda ----------
+
+    function autenticado() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function rutaHogar(hogarId) {
+      return /databases/$(database)/documents/hogares/$(hogarId);
+    }
+
+    function rutaInvitacion(codigo) {
+      return /databases/$(database)/documents/invitaciones/$(codigo);
+    }
+
+    // Miembro según el estado actual del hogar.
+    function esMiembro(hogarId) {
+      return autenticado() && uid() in get(rutaHogar(hogarId)).data.miembros;
+    }
+
+    // Miembro según el estado del hogar DESPUÉS de la escritura. Necesario al
+    // crear el hogar y sus categorías iniciales en la misma operación.
+    function esMiembroTrasEscritura(hogarId) {
+      return autenticado() && uid() in getAfter(rutaHogar(hogarId)).data.miembros;
+    }
+
+    function esCreador(hogarId) {
+      return autenticado() && get(rutaHogar(hogarId)).data.creadoPor == uid();
+    }
+
+    // La escritura solo modifica estos campos (los demás quedan igual).
+    function cambiaSolo(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos);
+    }
+
+    // Tiene exactamente estos campos: ni falta ninguno ni sobra ninguno.
+    function tieneCampos(datos, campos) {
+      return datos.keys().hasAll(campos) && datos.keys().hasOnly(campos);
+    }
+
+    function esTexto(valor, minimo, maximo) {
+      return valor is string && valor.size() >= minimo && valor.size() <= maximo;
+    }
+
+    // Código de invitación: 8 caracteres sin ambiguos (sin 0, O, 1 ni I).
+    function esCodigo(codigo) {
+      return codigo is string && codigo.matches('^[A-HJ-NP-Z2-9]{8}$');
+    }
+
+    // Fecha "YYYY-MM-DD".
+    function esFecha(fecha) {
+      return fecha is string
+        && fecha.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$');
+    }
+
+    // Importe en céntimos: entero positivo (tope: 1.000.000 €).
+    function esImporte(importe) {
+      return importe is int && importe > 0 && importe <= 100000000;
+    }
+
+    // Datos de un miembro en hogares/{id}.miembrosInfo.{uid}.
+    function esInfoMiembro(info) {
+      return info is map
+        && info.keys().hasAll(['nombre'])
+        && info.keys().hasOnly(['nombre', 'codigoUsado'])
+        && esTexto(info.nombre, 1, 50);
+    }
+
+    // ---------- Usuarios ----------
+
+    match /users/{userId} {
+      function perfilValido() {
+        let d = request.resource.data;
+        return tieneCampos(d, ['nombre', 'email', 'hogarId', 'creadoEn'])
+          && esTexto(d.nombre, 1, 50)
+          && d.email == request.auth.token.email
+          && (d.hogarId == null || d.hogarId is string);
+      }
+
+      allow read, delete: if autenticado() && uid() == userId;
+      allow create: if autenticado() && uid() == userId
+        && perfilValido()
+        && request.resource.data.creadoEn == request.time;
+      allow update: if autenticado() && uid() == userId
+        && perfilValido()
+        && request.resource.data.creadoEn == resource.data.creadoEn;
+    }
+
+    // ---------- Invitaciones ----------
+
+    match /invitaciones/{codigo} {
+      // Leer por código exacto (get), nunca listar.
+      allow get: if autenticado();
+      allow list: if false;
+
+      // Solo el creador del hogar, y en la misma operación en que el hogar
+      // pasa a usar este código (al crearlo o al regenerar el código).
+      allow create: if autenticado()
+        && esCodigo(codigo)
+        && tieneCampos(request.resource.data, ['hogarId', 'creadoPor', 'expiraEn'])
+        && request.resource.data.creadoPor == uid()
+        && getAfter(rutaHogar(request.resource.data.hogarId)).data.creadoPor == uid()
+        && getAfter(rutaHogar(request.resource.data.hogarId)).data.codigoInvitacion == codigo
+        && request.resource.data.expiraEn is timestamp
+        && request.resource.data.expiraEn > request.time
+        // 7 días, con una hora de margen por si el reloj del móvil va adelantado.
+        && request.resource.data.expiraEn <= request.time + duration.value(169, 'h');
+
+      allow update: if false;
+
+      // resource == null: borrar una invitación que ya no existe no hace nada
+      // (así regenerar el código no falla si la anterior ya se había borrado).
+      allow delete: if autenticado()
+        && (resource == null
+            || resource.data.creadoPor == uid()
+            || esCreador(resource.data.hogarId));
+    }
+
+    // ---------- Hogares ----------
+
+    match /hogares/{hogarId} {
+
+      // Invitación que existe, es de este hogar, no ha caducado y es la vigente.
+      function invitacionValida(codigo) {
+        return esCodigo(codigo)
+          && codigo == resource.data.codigoInvitacion
+          && exists(rutaInvitacion(codigo))
+          && get(rutaInvitacion(codigo)).data.hogarId == hogarId
+          && get(rutaInvitacion(codigo)).data.expiraEn > request.time;
+      }
+
+      function miembrosAntes() {
+        return resource.data.miembros.toSet();
+      }
+
+      function miembrosDespues() {
+        return request.resource.data.miembros.toSet();
+      }
+
+      // Las claves de miembrosInfo que cambian son solo las indicadas.
+      function infoCambiaSolo(uids) {
+        return request.resource.data.miembrosInfo
+          .diff(resource.data.miembrosInfo).affectedKeys().hasOnly(uids);
+      }
+
+      // Cualquier miembro puede cambiar el nombre del hogar.
+      function esRenombrar() {
+        return uid() in resource.data.miembros
+          && cambiaSolo(['nombre'])
+          && esTexto(request.resource.data.nombre, 1, 40);
+      }
+
+      // Un no miembro se añade a sí mismo (y solo a sí mismo) con un código válido.
+      // El código va en la propia escritura: miembrosInfo.{uid}.codigoUsado.
+      function esUnirse() {
+        let info = request.resource.data.miembrosInfo[uid()];
+        return !(uid() in resource.data.miembros)
+          && cambiaSolo(['miembros', 'miembrosInfo'])
+          && miembrosDespues() == miembrosAntes().union([uid()].toSet())
+          && request.resource.data.miembros.size() == resource.data.miembros.size() + 1
+          && infoCambiaSolo([uid()])
+          && esInfoMiembro(info)
+          && invitacionValida(info.codigoUsado);
+      }
+
+      // Un miembro se quita a sí mismo.
+      function esSalir() {
+        return uid() in resource.data.miembros
+          && cambiaSolo(['miembros', 'miembrosInfo'])
+          && miembrosDespues() == miembrosAntes().difference([uid()].toSet())
+          && request.resource.data.miembros.size() == resource.data.miembros.size() - 1
+          && infoCambiaSolo([uid()]);
+      }
+
+      // El creador quita a otros miembros (nunca a sí mismo por esta vía).
+      function esExpulsar() {
+        let quitados = miembrosAntes().difference(miembrosDespues());
+        return resource.data.creadoPor == uid()
+          && cambiaSolo(['miembros', 'miembrosInfo'])
+          && miembrosAntes().hasAll(miembrosDespues())
+          && uid() in request.resource.data.miembros
+          && quitados.size() > 0
+          && request.resource.data.miembros.size() == resource.data.miembros.size() - quitados.size()
+          && infoCambiaSolo(quitados);
+      }
+
+      // El creador cambia el código; la invitación nueva se crea en la misma operación.
+      function esRegenerarCodigo() {
+        let codigo = request.resource.data.codigoInvitacion;
+        return resource.data.creadoPor == uid()
+          && cambiaSolo(['codigoInvitacion'])
+          && esCodigo(codigo)
+          && getAfter(rutaInvitacion(codigo)).data.hogarId == hogarId;
+      }
+
+      allow read: if autenticado() && uid() in resource.data.miembros;
+
+      allow create: if autenticado()
+        && tieneCampos(request.resource.data,
+             ['nombre', 'creadoPor', 'miembros', 'miembrosInfo', 'codigoInvitacion', 'creadoEn'])
+        && esTexto(request.resource.data.nombre, 1, 40)
+        && request.resource.data.creadoPor == uid()
+        && request.resource.data.miembros == [uid()]
+        && request.resource.data.miembrosInfo.keys().hasOnly([uid()])
+        && esInfoMiembro(request.resource.data.miembrosInfo[uid()])
+        && request.resource.data.creadoEn == request.time
+        && esCodigo(request.resource.data.codigoInvitacion)
+        && getAfter(rutaInvitacion(request.resource.data.codigoInvitacion)).data.hogarId == hogarId;
+
+      allow update: if autenticado()
+        && (esRenombrar() || esUnirse() || esSalir() || esExpulsar() || esRegenerarCodigo());
+
+      allow delete: if autenticado() && resource.data.creadoPor == uid();
+
+      // ---------- Gastos ----------
+
+      match /gastos/{gastoId} {
+        function gastoValido() {
+          let d = request.resource.data;
+          return tieneCampos(d, ['importe', 'categoriaId', 'fecha', 'nota', 'pagadoPor',
+                                 'creadoPor', 'editadoPor', 'recurrenteId',
+                                 'creadoEn', 'editadoEn'])
+            && esImporte(d.importe)
+            && esTexto(d.categoriaId, 1, 100)
+            && esFecha(d.fecha)
+            && esTexto(d.nota, 0, 200)
+            && esTexto(d.pagadoPor, 1, 128)
+            && d.editadoPor == uid()
+            && d.editadoEn == request.time
+            && (d.recurrenteId == null || esIdGeneradoPorRecurrente(d));
+        }
+
+        // Los gastos fijos usan un id determinista "{recurrenteId}_{YYYY-MM}"
+        // para que no se dupliquen si dos miembros abren la app a la vez.
+        function esIdGeneradoPorRecurrente(d) {
+          let partes = d.fecha.split('-');
+          return esTexto(d.recurrenteId, 1, 100)
+            && gastoId == d.recurrenteId + '_' + partes[0] + '-' + partes[1];
+        }
+
+        allow read: if esMiembro(hogarId);
+        allow create: if esMiembro(hogarId)
+          && gastoValido()
+          && request.resource.data.creadoPor == uid()
+          && request.resource.data.creadoEn == request.time
+          && request.resource.data.pagadoPor in get(rutaHogar(hogarId)).data.miembros;
+        allow update: if esMiembro(hogarId)
+          && gastoValido()
+          && request.resource.data.creadoPor == resource.data.creadoPor
+          && request.resource.data.creadoEn == resource.data.creadoEn;
+        allow delete: if esMiembro(hogarId);
+      }
+
+      // ---------- Categorías ----------
+
+      match /categorias/{categoriaId} {
+        function categoriaValida() {
+          let d = request.resource.data;
+          return tieneCampos(d, ['nombre', 'icono', 'color', 'presupuestoMensual', 'archivada'])
+            && esTexto(d.nombre, 1, 40)
+            && esTexto(d.icono, 1, 16)
+            && d.color is string && d.color.matches('^#[0-9a-fA-F]{6}$')
+            && (d.presupuestoMensual == null
+                || (d.presupuestoMensual is int && d.presupuestoMensual > 0))
+            && d.archivada is bool;
+        }
+
+        allow read: if esMiembro(hogarId);
+        // getAfter: las categorías iniciales se crean junto con el hogar.
+        allow create, update: if esMiembroTrasEscritura(hogarId) && categoriaValida();
+        // No se borran (se archivan); solo el creador, al borrar el hogar.
+        allow delete: if esCreador(hogarId);
+      }
+
+      // ---------- Gastos recurrentes ----------
+
+      match /recurrentes/{recurrenteId} {
+        function recurrenteValido() {
+          let d = request.resource.data;
+          return tieneCampos(d, ['importe', 'categoriaId', 'diaDelMes', 'nota',
+                                 'pagadoPor', 'activo'])
+            && esImporte(d.importe)
+            && esTexto(d.categoriaId, 1, 100)
+            && d.diaDelMes is int && d.diaDelMes >= 1 && d.diaDelMes <= 28
+            && esTexto(d.nota, 0, 200)
+            && esTexto(d.pagadoPor, 1, 128)
+            && d.activo is bool;
+        }
+
+        allow read, delete: if esMiembro(hogarId);
+        allow create, update: if esMiembro(hogarId) && recurrenteValido();
+      }
+    }
+  }
+}
