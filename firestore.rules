@@ -292,8 +292,11 @@ service cloud.firestore {
         allow read: if esMiembro(hogarId);
         // getAfter: las categorías iniciales se crean junto con el hogar.
         allow create, update: if esMiembroTrasEscritura(hogarId) && categoriaValida();
-        // No se borran (se archivan); solo el creador, al borrar el hogar.
-        allow delete: if esCreador(hogarId);
+        // Cualquier miembro puede borrarlas. La app solo lo ofrece si la
+        // categoría no tiene gastos (si tiene, se archiva). Las reglas no
+        // pueden comprobarlo, pero un gasto con una categoría borrada se
+        // sigue viendo (como "Sin categoría").
+        allow delete: if esMiembro(hogarId);
       }
 
       // ---------- Gastos recurrentes ----------

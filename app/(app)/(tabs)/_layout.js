@@ -49,6 +49,10 @@ export default function LayoutPestanas() {
         }}
       />
       <Tabs.Screen
+        name="categorias"
+        options={{ title: 'Categorías', tabBarIcon: () => <Icono emoji="🏷️" /> }}
+      />
+      <Tabs.Screen
         name="ajustes"
         options={{ title: 'Ajustes', tabBarIcon: () => <Icono emoji="⚙️" /> }}
       />
