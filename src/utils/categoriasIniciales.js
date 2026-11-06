@@ -1,4 +1,16 @@
-// Categorías que se crean la primera vez que se abre la app.
+// Categorías que se crean en cada hogar nuevo (ver ESPECIFICACION.md, sección 4).
+
+/**
+ * @typedef {Object} Categoria
+ * @property {string} id                  Identificador estable (también id del documento).
+ * @property {string} nombre
+ * @property {string} icono               Emoji.
+ * @property {string} color               Color en hexadecimal, p. ej. "#2563eb".
+ * @property {number|null} presupuestoMensual  En céntimos, o null si no tiene.
+ * @property {boolean} archivada
+ */
+
+/** @type {Categoria[]} */
 export const categoriasIniciales = [
   { id: 'hipoteca', nombre: 'Hipoteca/Alquiler', icono: '🏠', color: '#2563eb' },
   { id: 'luz', nombre: 'Luz', icono: '💡', color: '#f59e0b' },

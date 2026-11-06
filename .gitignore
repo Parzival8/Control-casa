@@ -1,5 +1,50 @@
-node_modules
-dist
-dev-dist
-.DS_Store
+# Dependencias
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Carpetas nativas generadas (las crea EAS con "prebuild"; no se editan a mano)
+/android
+/ios
+.kotlin/
+
+# Metro
+.metro-health-check*
+
+# Logs
+npm-debug.*
 *.log
+
+# ---- SECRETOS: no subir NUNCA (el repositorio es público) ----
+# Configuración de Firebase: en EAS va como variable de tipo archivo GOOGLE_SERVICES_JSON
+google-services.json
+GoogleService-Info.plist
+# Variables de entorno
+.env
+.env.*
+!.env.example
+# Keystores y claves de firma
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+# Cuentas de servicio de Google/Firebase
+*serviceAccount*.json
+*-firebase-adminsdk-*.json
+credentials.json
+
+# Emulador de Firebase
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Sistema
+.DS_Store
+*.orig.*

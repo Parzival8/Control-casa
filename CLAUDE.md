@@ -7,7 +7,16 @@ App **móvil nativa** para llevar los gastos mensuales del hogar de forma **comp
 - `PLAN_FASES.md`: orden de trabajo por fases con criterios de aceptación.
 
 ## Estado del repositorio
-El repo contiene un prototipo anterior en formato PWA (Vite). Está guardado en el commit `baedfb1` del historial (`git show baedfb1:ruta/archivo`). La Fase 0 lo elimina de `main` y lo sustituye por el proyecto móvil; se pueden reutilizar de ahí `src/utils/formato.js` y `src/utils/categoriasIniciales.js`.
+El prototipo anterior en formato PWA (Vite) se eliminó en la Fase 0; sigue en el commit `baedfb1` del historial (`git show baedfb1:ruta/archivo`). De él se reutilizaron `src/utils/formato.js` y `src/utils/categoriasIniciales.js`.
+
+## Configuración del proyecto (Fase 0)
+- Expo SDK 58, React Native 0.88, Expo Router, `@react-native-firebase` 27 (app, auth, firestore).
+- Paquete Android: **`com.parzival8.controlcasa`** (no se puede cambiar tras publicar).
+- Expo: cuenta `parzival8`, proyecto `control-casa`, id `a8fe5364-9e2b-4434-86f9-c2f05bd2f145`.
+- Firebase: proyecto `control-casa-7df4f`, Firestore en `eur3`, Authentication con email/contraseña.
+- La configuración está en `app.config.js` (no `app.json`) para leer `google-services.json` desde la variable de EAS `GOOGLE_SERVICES_JSON` (tipo archivo, visibilidad *Secret*, en los tres entornos).
+- **Builds**: el usuario los lanza desde expo.dev con **"Build from GitHub"** (repositorio ya conectado), eligiendo rama y perfil. No usa ordenador.
+- Formato de moneda: `formatearImporte` lo hace a mano en vez de con `Intl.NumberFormat`, porque Hermes (el motor JS del móvil) no garantiza `useGrouping: 'always'` y en es-ES 4 cifras saldrían sin punto.
 
 ## Stack
 - **Expo (React Native) con JavaScript** y **Expo Router** para navegar. Sin TypeScript (el usuario está aprendiendo JS y quiere poder leer el código); documentar los modelos con JSDoc.
@@ -35,7 +44,7 @@ Regla clave: **ninguna pantalla ni componente importa Firebase directamente**; s
 
 ## Convenciones
 - Idioma: **todo en español de España** (interfaz, comentarios, nombres de dominio como `gasto`, `categoria`, `importe`, `hogar`).
-- Moneda en euros, formato `1.234,56 €` con `Intl.NumberFormat('es-ES', { useGrouping: 'always' })`.
+- Moneda en euros, formato `1.234,56 €`, siempre con `formatearImporte` de `src/utils/formato.js`.
 - Fechas: guardar `YYYY-MM-DD`; mostrar `dd/mm/aaaa`.
 - Importes: **céntimos en entero**, siempre.
 - Diseño mobile-first, botones grandes, uso con una mano, tema claro/oscuro según el sistema.
@@ -52,12 +61,14 @@ Regla clave: **ninguna pantalla ni componente importa Firebase directamente**; s
 - **No puede** ver la app en un móvil ni usar la consola de Firebase/Play. Al terminar cada fase debe decir claramente qué queda por probar a mano y dar los pasos exactos (qué build instalar y qué comprobar).
 - Los pasos que solo puede hacer el usuario (crear proyecto de Firebase, cuenta de Expo, subir a Play Console) están en `PLAN_FASES.md`, fase 0 y fase 7. Guiarle paso a paso cuando toque.
 
-## Comandos (se rellenarán en la Fase 0)
-- `npx expo start --dev-client`: servidor de desarrollo.
-- `eas build --profile development --platform android`: build de desarrollo.
-- `npm test`: tests de lógica.
-- `npm run test:rules`: tests de reglas de Firestore con el emulador.
-- `npm run lint`
+## Comandos
+- `npm start` (`expo start --dev-client`): servidor de desarrollo para el build de desarrollo instalado en el móvil.
+- Build de desarrollo: en expo.dev → proyecto → **Build from GitHub** → plataforma Android, perfil `development`. Equivale a `eas build --profile development --platform android`.
+- Perfiles de `eas.json`: `development` (APK con dev client), `preview` (APK normal para probar), `production` (AAB para Google Play).
+- `npm test`: tests de lógica con Jest.
+- `npm run lint`: ESLint con la configuración de Expo.
+- `npm run doctor`: `expo-doctor`. Desde Claude Code hay que usar `EXPO_OFFLINE=1` porque la red de la sesión bloquea `exp.host`/`api.expo.dev`; por la misma razón, instalar paquetes con `EXPO_OFFLINE=1 npx expo install <paquete>`.
+- `npm run test:rules`: tests de reglas de Firestore con el emulador (se añade en la Fase 1).
 
 ## Flujo de trabajo
 - Trabajar **una fase cada vez**, siguiendo `PLAN_FASES.md`.
