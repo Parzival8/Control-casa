@@ -8,6 +8,8 @@ Las tareas marcadas con 👤 solo puede hacerlas el usuario (Claude Code no tien
 
 ## Fase 0: Preparación y cambio a app móvil
 
+> ✅ **Completada** (6/11/2026). APK compilado con GitHub Actions, instalado y probado en el móvil del usuario: abre, conecta con Firebase y respeta el tema del sistema.
+
 **👤 Requisitos previos del usuario**
 1. Crear cuenta gratuita en **expo.dev** y verificar el email.
 2. Crear proyecto en la **consola de Firebase** (plan Spark, gratuito). Nombre sugerido: `control-casa`. Desactivar Google Analytics si pregunta (no hace falta).
