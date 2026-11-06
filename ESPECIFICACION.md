@@ -89,7 +89,7 @@ Importe (teclado numérico, enfocado al abrir), categoría en cuadrícula de ico
 - Donut: gasto por categoría del mes.
 - Barras: total de los últimos 12 meses.
 - Comparativa con el mes anterior (€ y %), gasto medio mensual.
-- **Reparto entre miembros**: cuánto ha pagado cada uno en el mes y cuánto le tocaría a cada uno si se divide a partes iguales (resumen informativo de "quién debe a quién"; no gestiona pagos).
+- **Reparto entre miembros**: cuánto ha pagado cada uno en el mes y cuánto le tocaría a cada uno si se divide a partes iguales (resumen informativo de "quién debe a quién"; no gestiona pagos). Los gastos sin "pagado por" no cuentan en el reparto; se indica aparte cuánto suman.
 
 ### Categorías
 Lista; crear, editar (nombre, icono, color, presupuesto), archivar. Una categoría con gastos no se borra, se archiva.

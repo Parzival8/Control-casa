@@ -19,7 +19,8 @@ El prototipo anterior en formato PWA (Vite) se eliminó en la Fase 0; sigue en e
 - EAS (`eas.json`, botón "Build from GitHub" en expo.dev) queda como alternativa y para el AAB de producción en la Fase 7.
 - **Unirse a un hogar sin Cloud Functions**: el código va en la propia escritura (`miembrosInfo.{uid}.codigoUsado`) y las reglas comprueban que es el vigente del hogar (`hogares/{id}.codigoInvitacion`), que la invitación existe, es de ese hogar y no ha caducado. Códigos de 8 caracteres sin 0/O/1/I.
 - Navegación: `app/index.js` redirige según sesión/hogar y `Stack.Protected` en `app/_layout.js` impide abrir pantallas de otro grupo. La pestaña de inicio es `/inicio`.
-- **"Pagado por" es opcional** (decisión del usuario, Fase 2): `pagadoPor` es un uid o `null` ("Sin indicar", lo predeterminado). En la Fase 4 hay que decidir con el usuario cómo cuentan en el reparto los gastos sin indicar.
+- **"Pagado por" es opcional** (decisión del usuario, Fase 2): `pagadoPor` es un uid o `null` ("Sin indicar", lo predeterminado).
+- **Reparto** (decisión del usuario, Fase 4): los gastos "Sin indicar" (y los pagados por antiguos miembros) **no cuentan**; se muestra aparte cuánto suman. El reparto se divide entre los miembros actuales al céntimo (`src/utils/reparto.js`, el céntimo sobrante va a los primeros por uid).
 - Gastos sin conexión: crear/editar/borrar **no esperan** al servidor (Firestore los guarda en el móvil y los sincroniza); los errores del servidor se avisan con un `Alert`. La persistencia offline de Firestore viene activada por defecto en Android.
 - Las escrituras que cambian `users/{uid}.hogarId` se hacen después de que el servidor confirme el hogar (si no, la app escucharía el hogar antes de tener permiso).
 - Categorías (Fase 3): una categoría **con gastos solo se archiva**; sin gastos se puede eliminar (la app lo comprueba antes; las reglas permiten borrar a cualquier miembro). Las archivadas no se ofrecen al apuntar, pero los gastos antiguos las siguen mostrando.
@@ -30,7 +31,7 @@ El prototipo anterior en formato PWA (Vite) se eliminó en la Fase 0; sigue en e
 - **Expo (React Native) con JavaScript** y **Expo Router** para navegar. Sin TypeScript (el usuario está aprendiendo JS y quiere poder leer el código); documentar los modelos con JSDoc.
 - **Firebase** con `@react-native-firebase`: Authentication (email y contraseña), Firestore (con persistencia offline y escucha en tiempo real) y reglas de seguridad.
 - Al usar módulos nativos, **no funciona Expo Go**: se prueba con *development builds* de **EAS Build** (en la nube, no hace falta Android Studio instalado).
-- Gráficos: librería sencilla compatible con Expo (proponer y justificar la elegida, p. ej. `react-native-gifted-charts`).
+- Gráficos: **`react-native-gifted-charts`** (elegida por el usuario en la Fase 4), con `react-native-svg` y `expo-linear-gradient`. En los tests de navegación se simula.
 - Tests de lógica pura (totales, formato, dinero) con Jest. Reglas de Firestore probadas con el emulador de Firebase.
 - Plataforma objetivo inicial: **Android**. iOS queda como opcional en el futuro.
 

@@ -43,6 +43,10 @@ jest.mock('../../src/data/gastos', () => ({
     ok(falso.gastos.filter((g) => g.fecha.startsWith(mes)));
     return () => {};
   },
+  escucharGastosEntre: (hogarId, desde, hasta, ok) => {
+    ok(falso.gastos.filter((g) => g.fecha.slice(0, 7) >= desde && g.fecha.slice(0, 7) <= hasta));
+    return () => {};
+  },
   escucharGasto: (hogarId, id, ok) => {
     ok(falso.gastos.find((g) => g.id === id) ?? null);
     return () => {};
@@ -66,6 +70,12 @@ jest.mock('../../src/data/categorias', () => ({
     ]);
     return () => {};
   },
+}));
+
+// Los gráficos dibujan con SVG nativo: en los tests se sustituyen por una caja vacía.
+jest.mock('react-native-gifted-charts', () => ({
+  PieChart: () => null,
+  BarChart: () => null,
 }));
 
 jest.mock('@react-native-community/datetimepicker', () => ({
@@ -423,5 +433,48 @@ describe('categorías', () => {
     await waitFor(() => expect(datos.borrarCategoria).toHaveBeenCalled());
     expect(alerta.mock.calls[0][0]).toBe('¿Eliminar «Luz»?');
     alerta.mockRestore();
+  });
+});
+
+describe('estadísticas', () => {
+  const NBSP = '\u00A0';
+  const { mesActual } = require('../../src/utils/formato');
+  const { sumarMeses } = require('../../src/utils/meses');
+  const mes = mesActual();
+  const gasto = (id, fecha, importe, pagadoPor, categoriaId = 'luz') => ({
+    id, importe, categoriaId, fecha, nota: '', pagadoPor,
+    creadoPor: 'ana', editadoPor: 'ana', recurrenteId: null, creadoEn: null,
+  });
+
+  beforeEach(() => {
+    falso.usuario = ana;
+    falso.perfil = { nombre: 'Ana', email: ana.email, hogarId: 'h1' };
+    falso.hogar = hogar;
+  });
+
+  test('sin gastos muestra estados vacíos amables', async () => {
+    await renderRouter(APP, { initialUrl: '/estadisticas' });
+    expect(screen.getByText(/Este mes todavía no hay gastos/)).toBeTruthy();
+    expect(screen.getByText('Aún no hay gastos en el último año.')).toBeTruthy();
+    expect(screen.getByText('✅ Estáis en paz: nadie debe nada.')).toBeTruthy();
+  });
+
+  test('total, comparación, media y reparto con "Sin indicar" aparte', async () => {
+    falso.gastos = [
+      gasto('a', `${mes}-01`, 10000, 'ana'),
+      gasto('b', `${mes}-02`, 4000, 'blas', 'supermercado'),
+      gasto('c', `${mes}-03`, 500, null),
+      gasto('d', `${sumarMeses(mes, -1)}-15`, 10000, 'ana'),
+    ];
+    await renderRouter(APP, { initialUrl: '/estadisticas' });
+
+    // Total del mes (14.500) y +45 % respecto a los 10.000 del mes anterior.
+    expect(screen.getAllByText(`145,00${NBSP}€`).length).toBeGreaterThan(0);
+    expect(screen.getByText(/\+45,00.€ \(\+45 %\)/)).toBeTruthy();
+    // Media de los 2 meses con gasto: (145 + 100) / 2 = 122,50.
+    expect(screen.getByText(`122,50${NBSP}€`)).toBeTruthy();
+    // Reparto: 140 € entre 2 -> 70 cada uno; Blas pagó 40, debe 30 a Ana (que soy yo).
+    expect(screen.getByText(`💸 Blas te debe 30,00${NBSP}€`)).toBeTruthy();
+    expect(screen.getByText(/No cuentan 5,00.€ de gastos sin «Pagado por»/)).toBeTruthy();
   });
 });
