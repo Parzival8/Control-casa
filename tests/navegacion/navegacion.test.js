@@ -1,11 +1,11 @@
 // Tests de navegación y pantallas con Expo Router (sin móvil ni Firebase).
 // La capa de datos (src/data) se sustituye por versiones falsas, así se
 // comprueba que cada situación lleva a la pantalla correcta y que se dibuja.
-import { fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
+import { act, fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
 import path from 'path';
 
 // Estado "falso" de Firebase que cada test ajusta.
-const falso = { usuario: null, perfil: null, hogar: null };
+const falso = { usuario: null, perfil: null, hogar: null, errorHogar: null };
 
 jest.mock('../../src/data/auth', () => ({
   escucharSesion: (cb) => {
@@ -27,8 +27,9 @@ jest.mock('../../src/data/usuarios', () => ({
 }));
 
 jest.mock('../../src/data/hogares', () => ({
-  escucharHogar: (id, ok) => {
-    ok(falso.hogar);
+  escucharHogar: (id, ok, fallo) => {
+    if (falso.errorHogar) fallo(falso.errorHogar);
+    else ok(falso.hogar, { desdeCache: false });
     return () => {};
   },
   leerCaducidadCodigo: () => Promise.resolve(new Date(2099, 0, 1)),
@@ -53,6 +54,7 @@ beforeEach(() => {
   falso.usuario = null;
   falso.perfil = null;
   falso.hogar = null;
+  falso.errorHogar = null;
 });
 
 describe('sin sesión', () => {
@@ -132,9 +134,27 @@ describe('con hogar', () => {
     expect(screen.getByText('Generar código nuevo')).toBeTruthy();
   });
 
-  test('si te han quitado del hogar, lo explica', async () => {
+  test('si el hogar ya no existe, lo explica', async () => {
     falso.hogar = null;
     await renderRouter(APP, { initialUrl: '/' });
     expect(screen.getByText('Ya no estás en este hogar')).toBeTruthy();
+  });
+
+  test('un "sin permiso" puntual (recién creado) se reintenta antes de rendirse', async () => {
+    falso.errorHogar = { code: 'firestore/permission-denied' };
+    await renderRouter(APP, { initialUrl: '/' });
+    // Primer error: aún no muestra el aviso, sigue esperando.
+    expect(screen.queryByText('Ya no estás en este hogar')).toBeNull();
+    // El servidor ya responde bien en el reintento.
+    falso.errorHogar = null;
+    await act(() => jest.advanceTimersByTime(1600));
+    expect(await screen.findByText('Gastos del mes')).toBeTruthy();
+  });
+
+  test('si el "sin permiso" se repite, entonces sí avisa', async () => {
+    falso.errorHogar = { code: 'firestore/permission-denied' };
+    await renderRouter(APP, { initialUrl: '/' });
+    for (let i = 0; i < 3; i++) await act(() => jest.advanceTimersByTime(1600));
+    expect(await screen.findByText('Ya no estás en este hogar')).toBeTruthy();
   });
 });

@@ -10,6 +10,7 @@ import {
   getFirestore,
   onSnapshot,
   serverTimestamp,
+  updateDoc,
   writeBatch,
 } from '@react-native-firebase/firestore';
 
@@ -56,8 +57,8 @@ function esSinConexion(error) {
 }
 
 /**
- * Crea un hogar con su invitación y las categorías iniciales, y lo asigna al
- * usuario. Todo va en un único lote: o se guarda entero o no se guarda nada.
+ * Crea un hogar con su invitación y las categorías iniciales (en un único
+ * lote: o se guarda entero o nada) y después lo asigna al usuario.
  * @param {{ usuario: import('./auth').UsuarioSesion, nombreUsuario: string, nombreHogar: string }} datos
  * @returns {Promise<string>} Id del hogar creado.
  */
@@ -85,15 +86,19 @@ export async function crearHogar({ usuario, nombreUsuario, nombreHogar }) {
     for (const { id, ...categoria } of categoriasIniciales) {
       lote.set(doc(db(), 'hogares', hogar.id, 'categorias', id), categoria);
     }
-    lote.update(refPerfil(usuario.uid), { hogarId: hogar.id });
 
     try {
       await lote.commit();
-      return hogar.id;
     } catch (error) {
       // Si el código ya existía, las reglas lo rechazan: se prueba con otro.
       if (!esPermisoDenegado(error) || intento === INTENTOS_CODIGO) throw error;
+      continue;
     }
+    // El perfil se actualiza solo cuando el servidor ya ha creado el hogar.
+    // Si fuera en el mismo lote, la app cambiaría de pantalla al instante y
+    // pediría el hogar al servidor antes de que existiera (permiso denegado).
+    await updateDoc(refPerfil(usuario.uid), { hogarId: hogar.id });
+    return hogar.id;
   }
   throw crearError(ERRORES_APP.SIN_CONEXION);
 }
@@ -132,28 +137,27 @@ export async function unirseConCodigo({ usuario, nombreUsuario, codigo }) {
   await asegurarPerfil(usuario);
   const invitacion = await buscarInvitacion(limpio);
 
-  const lote = writeBatch(db());
-  lote.update(refHogar(invitacion.hogarId), {
-    miembros: arrayUnion(usuario.uid),
-    [`miembrosInfo.${usuario.uid}`]: { nombre: nombreUsuario, codigoUsado: limpio },
-  });
-  lote.update(refPerfil(usuario.uid), { hogarId: invitacion.hogarId });
-
   try {
-    await lote.commit();
+    await updateDoc(refHogar(invitacion.hogarId), {
+      miembros: arrayUnion(usuario.uid),
+      [`miembrosInfo.${usuario.uid}`]: { nombre: nombreUsuario, codigoUsado: limpio },
+    });
   } catch (error) {
     // Las reglas lo rechazan si el código ya no es el vigente (regenerado),
     // si ha caducado justo ahora o si ya eras miembro.
     if (esPermisoDenegado(error)) throw crearError(ERRORES_APP.CODIGO_NO_EXISTE);
     throw error;
   }
+  // Solo cuando el servidor ya te tiene como miembro (ver crearHogar).
+  await updateDoc(refPerfil(usuario.uid), { hogarId: invitacion.hogarId });
   return invitacion.hogarId;
 }
 
 /**
  * Escucha un hogar en tiempo real.
  * @param {string} hogarId
- * @param {(hogar: Hogar|null) => void} alCambiar  null si no existe.
+ * @param {(hogar: Hogar|null, info: {desdeCache: boolean}) => void} alCambiar
+ *   hogar null si no existe; desdeCache true si aún no ha respondido el servidor.
  * @param {(error: Error) => void} alFallar  p. ej. sin permiso si te expulsan.
  * @returns {() => void}
  */
@@ -161,7 +165,9 @@ export function escucharHogar(hogarId, alCambiar, alFallar) {
   return onSnapshot(
     refHogar(hogarId),
     (instantanea) =>
-      alCambiar(instantanea.exists() ? { id: instantanea.id, ...instantanea.data() } : null),
+      alCambiar(instantanea.exists() ? { id: instantanea.id, ...instantanea.data() } : null, {
+        desdeCache: instantanea.metadata.fromCache,
+      }),
     alFallar,
   );
 }
