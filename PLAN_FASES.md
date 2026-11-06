@@ -89,6 +89,8 @@ Las tareas marcadas con 👤 solo puede hacerlas el usuario (Claude Code no tien
 ---
 
 ## Fase 4: Estadísticas y reparto
+
+> ✅ **Completada** (6/11/2026). Probada por el usuario con el APK compilación 20 en dos móviles: gráficos que cuadran con Inicio, reparto (los "Sin indicar" no cuentan, por decisión del usuario), cambio de mes, tiempo real y pantalla pequeña. Gráficos con `react-native-gifted-charts`.
 **Tareas**
 - Pestaña Estadísticas: donut por categoría, barras de los últimos 12 meses, comparativa con el mes anterior y gasto medio mensual.
 - **Reparto entre miembros**: pagado por cada uno en el mes, parte que le correspondería a partes iguales y diferencia (quién debe a quién). Con tests de Jest, incluyendo redondeos de céntimos (el reparto debe cuadrar al céntimo).
