@@ -73,7 +73,9 @@ jobs:
 
       - name: Compilar el APK
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
+        # Solo arm64-v8a: es el procesador de prácticamente todos los móviles
+        # Android actuales. Compilar las 4 arquitecturas tardaba ~25 minutos.
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
 
       - name: Renombrar el APK
         id: apk
