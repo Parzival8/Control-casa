@@ -25,7 +25,8 @@ users/{uid}
 
 hogares/{hogarId}
   nombre, creadoPor (uid), miembros: [uid, ...], creadoEn
-  miembrosInfo: { uid: { nombre } }          # para mostrar nombres sin leer users/
+  codigoInvitacion                           # código vigente; al regenerarlo el anterior deja de valer
+  miembrosInfo: { uid: { nombre, codigoUsado? } }  # nombres sin leer users/; codigoUsado = código con el que se unió
   /gastos/{gastoId}
   /categorias/{categoriaId}
   /recurrentes/{recurrenteId}

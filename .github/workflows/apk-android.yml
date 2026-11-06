@@ -51,11 +51,6 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      - name: Tests y lint
-        run: |
-          npm test
-          npm run lint
-
       - name: Crear google-services.json desde el secreto
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}

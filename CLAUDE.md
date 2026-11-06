@@ -17,6 +17,8 @@ El prototipo anterior en formato PWA (Vite) se eliminó en la Fase 0; sigue en e
 - La configuración está en `app.config.js` (no `app.json`) para leer `google-services.json` desde la variable de EAS `GOOGLE_SERVICES_JSON` (tipo archivo, visibilidad *Secret*, en los tres entornos).
 - **Builds de prueba (APK)**: los compila **GitHub Actions** (`.github/workflows/apk-android.yml`) con cada push o con "Run workflow", y los publica en **Releases** para descargarlos desde el móvil. Necesita el secreto de Actions `GOOGLE_SERVICES_JSON` (contenido completo del archivo). El APK va firmado con la clave de depuración de Expo: vale para probar, no para Play. El usuario no usa ordenador.
 - EAS (`eas.json`, botón "Build from GitHub" en expo.dev) queda como alternativa y para el AAB de producción en la Fase 7.
+- **Unirse a un hogar sin Cloud Functions**: el código va en la propia escritura (`miembrosInfo.{uid}.codigoUsado`) y las reglas comprueban que es el vigente del hogar (`hogares/{id}.codigoInvitacion`), que la invitación existe, es de ese hogar y no ha caducado. Códigos de 8 caracteres sin 0/O/1/I.
+- Navegación: `app/index.js` redirige según sesión/hogar y `Stack.Protected` en `app/_layout.js` impide abrir pantallas de otro grupo. La pestaña de inicio es `/inicio`.
 - Formato de moneda: `formatearImporte` lo hace a mano en vez de con `Intl.NumberFormat`, porque Hermes (el motor JS del móvil) no garantiza `useGrouping: 'always'` y en es-ES 4 cifras saldrían sin punto.
 
 ## Stack
@@ -67,10 +69,12 @@ Regla clave: **ninguna pantalla ni componente importa Firebase directamente**; s
 - APK de prueba: GitHub → pestaña **Actions** → "APK Android" → **Run workflow** (o cualquier push). El APK aparece en **Releases**.
 - Alternativa con EAS: en expo.dev → **Build from GitHub**, perfil `preview` (equivale a `eas build --profile preview --platform android`).
 - Perfiles de `eas.json`: `development` (APK con dev client), `preview` (APK normal para probar), `production` (AAB para Google Play).
-- `npm test`: tests de lógica con Jest.
+- `npm test`: tests de lógica (`src/utils/__tests__`) y de navegación (`tests/navegacion`, con `expo-router/testing-library` y la capa `src/data` simulada).
 - `npm run lint`: ESLint con la configuración de Expo.
 - `npm run doctor`: `expo-doctor`. Desde Claude Code hay que usar `EXPO_OFFLINE=1` porque la red de la sesión bloquea `exp.host`/`api.expo.dev`; por la misma razón, instalar paquetes con `EXPO_OFFLINE=1 npx expo install <paquete>`.
-- `npm run test:rules`: tests de reglas de Firestore con el emulador (se añade en la Fase 1).
+- `npm run test:rules`: tests de reglas (`tests/reglas`) contra el emulador de Firestore (necesita Java). Proyecto `demo-control-casa`, nunca toca el real.
+- Publicar reglas (lo hace el usuario desde su ordenador, en la carpeta del repositorio): `firebase deploy --only firestore:rules` (`.firebaserc` ya apunta a `control-casa-7df4f`).
+- GitHub Actions: `pruebas.yml` (lint + todos los tests, en cada push) y `apk-android.yml` (APK).
 
 ## Flujo de trabajo
 - Trabajar **una fase cada vez**, siguiendo `PLAN_FASES.md`.
