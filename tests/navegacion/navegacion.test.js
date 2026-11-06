@@ -5,7 +5,7 @@ import { act, fireEvent, renderRouter, screen, waitFor } from 'expo-router/testi
 import path from 'path';
 
 // Estado "falso" de Firebase que cada test ajusta.
-const falso = { usuario: null, perfil: null, hogar: null, errorHogar: null };
+const falso = { usuario: null, perfil: null, hogar: null, errorHogar: null, gastos: [] };
 
 jest.mock('../../src/data/auth', () => ({
   escucharSesion: (cb) => {
@@ -38,6 +38,35 @@ jest.mock('../../src/data/hogares', () => ({
   regenerarCodigo: jest.fn(),
 }));
 
+jest.mock('../../src/data/gastos', () => ({
+  escucharGastosDelMes: (hogarId, mes, ok) => {
+    ok(falso.gastos.filter((g) => g.fecha.startsWith(mes)));
+    return () => {};
+  },
+  escucharGasto: (hogarId, id, ok) => {
+    ok(falso.gastos.find((g) => g.id === id) ?? null);
+    return () => {};
+  },
+  crearGasto: jest.fn(() => 'nuevo'),
+  editarGasto: jest.fn(),
+  borrarGasto: jest.fn(),
+}));
+
+jest.mock('../../src/data/categorias', () => ({
+  escucharCategorias: (hogarId, ok) => {
+    ok([
+      { id: 'luz', nombre: 'Luz', icono: '💡', color: '#f59e0b', archivada: false },
+      { id: 'supermercado', nombre: 'Supermercado', icono: '🛒', color: '#22c55e', archivada: false },
+      { id: 'vieja', nombre: 'Archivada', icono: '🗄️', color: '#000000', archivada: true },
+    ]);
+    return () => {};
+  },
+}));
+
+jest.mock('@react-native-community/datetimepicker', () => ({
+  DateTimePickerAndroid: { open: jest.fn() },
+}));
+
 const APP = path.join(__dirname, '../../app');
 
 const ana = { uid: 'ana', email: 'ana@ejemplo.com', nombre: 'Ana' };
@@ -55,6 +84,8 @@ beforeEach(() => {
   falso.perfil = null;
   falso.hogar = null;
   falso.errorHogar = null;
+  falso.gastos = [];
+  jest.clearAllMocks();
 });
 
 describe('sin sesión', () => {
@@ -119,11 +150,11 @@ describe('con hogar', () => {
     falso.hogar = hogar;
   });
 
-  test('muestra Inicio con los miembros', async () => {
+  test('Inicio sin gastos invita a apuntar el primero', async () => {
     const app = await renderRouter(APP, { initialUrl: '/' });
     expect(app.getPathname()).toBe('/inicio');
-    expect(screen.getByText('Gastos del mes')).toBeTruthy();
-    expect(screen.getByText('En el hogar (2)')).toBeTruthy();
+    expect(screen.getByText(/No hay gastos este mes/)).toBeTruthy();
+    expect(screen.getByText('0 gastos')).toBeTruthy();
   });
 
   test('Ajustes muestra el código para compartir', async () => {
@@ -154,7 +185,7 @@ describe('con hogar', () => {
     // El servidor ya responde bien en el reintento.
     falso.errorHogar = null;
     await act(() => jest.advanceTimersByTime(2100));
-    expect(await screen.findByText('Gastos del mes')).toBeTruthy();
+    expect(await screen.findByText(/No hay gastos este mes/)).toBeTruthy();
   });
 
   test('si el "sin permiso" se repite, entonces sí avisa', async () => {
@@ -167,6 +198,123 @@ describe('con hogar', () => {
     // "Reintentar" vuelve a intentarlo y, si ya hay acceso, entra.
     falso.errorHogar = null;
     await fireEvent.press(screen.getByText('Reintentar'));
-    expect(await screen.findByText('Gastos del mes')).toBeTruthy();
+    expect(await screen.findByText(/No hay gastos este mes/)).toBeTruthy();
+  });
+});
+
+describe('gastos', () => {
+  const NBSP = '\u00A0';
+  const { mesActual } = require('../../src/utils/formato');
+  const mes = mesActual();
+
+  beforeEach(() => {
+    falso.usuario = ana;
+    falso.perfil = { nombre: 'Ana', email: ana.email, hogarId: 'h1' };
+    falso.hogar = hogar;
+    falso.gastos = [
+      {
+        id: 'g1', importe: 1250, categoriaId: 'luz', fecha: `${mes}-02`, nota: 'Factura',
+        pagadoPor: 'blas', creadoPor: 'ana', editadoPor: 'ana', recurrenteId: null, creadoEn: null,
+      },
+      {
+        id: 'g2', importe: 123456, categoriaId: 'supermercado', fecha: `${mes}-01`, nota: '',
+        pagadoPor: null, creadoPor: 'ana', editadoPor: 'ana', recurrenteId: null, creadoEn: null,
+      },
+    ];
+  });
+
+  test('Inicio muestra el total del mes y la lista', async () => {
+    await renderRouter(APP, { initialUrl: '/' });
+    expect(screen.getByText(`1.247,06${NBSP}€`)).toBeTruthy();
+    expect(screen.getByText('2 gastos')).toBeTruthy();
+    expect(screen.getByText('Factura')).toBeTruthy();
+    expect(screen.getByText(`12,50${NBSP}€`)).toBeTruthy();
+    // Sin nota se muestra la categoría.
+    expect(screen.getByText('Supermercado')).toBeTruthy();
+  });
+
+  test('cambiar al mes anterior (sin gastos) pone el total a cero', async () => {
+    await renderRouter(APP, { initialUrl: '/' });
+    await fireEvent.press(screen.getByLabelText('Mes anterior'));
+    expect(await screen.findByText(`0,00${NBSP}€`)).toBeTruthy();
+  });
+
+  test('apuntar un gasto: pagado por es opcional (sin indicar por defecto)', async () => {
+    const { crearGasto } = require('../../src/data/gastos');
+    const app = await renderRouter(APP, { initialUrl: '/' });
+    await fireEvent.press(screen.getByLabelText('Apuntar gasto'));
+    await waitFor(() => expect(app.getPathname()).toBe('/gasto/nuevo'));
+
+    // La categoría archivada no se ofrece.
+    expect(screen.queryByText('Archivada')).toBeNull();
+
+    await fireEvent.changeText(screen.getByLabelText('Importe (€)'), '45,90');
+    await fireEvent.press(screen.getByLabelText('Supermercado'));
+    await fireEvent.press(screen.getByText('Guardar'));
+
+    expect(crearGasto).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hogarId: 'h1',
+        uid: 'ana',
+        datos: expect.objectContaining({ importe: 4590, categoriaId: 'supermercado', pagadoPor: null }),
+      }),
+    );
+    await waitFor(() => expect(app.getPathname()).toBe('/inicio'));
+  });
+
+  test('se puede indicar quién pagó', async () => {
+    const { crearGasto } = require('../../src/data/gastos');
+    await renderRouter(APP, { initialUrl: '/gasto/nuevo' });
+    await fireEvent.changeText(screen.getByLabelText('Importe (€)'), '10');
+    await fireEvent.press(screen.getByLabelText('Luz'));
+    await fireEvent.press(screen.getByLabelText('Blas'));
+    await fireEvent.press(screen.getByText('Guardar'));
+    expect(crearGasto.mock.calls[0][0].datos).toEqual(
+      expect.objectContaining({ importe: 1000, categoriaId: 'luz', pagadoPor: 'blas' }),
+    );
+  });
+
+  test('sin importe o sin categoría avisa y no guarda', async () => {
+    const { crearGasto } = require('../../src/data/gastos');
+    await renderRouter(APP, { initialUrl: '/gasto/nuevo' });
+    await fireEvent.press(screen.getByText('Guardar'));
+    expect(await screen.findByText('Escribe un importe mayor que cero.')).toBeTruthy();
+    await fireEvent.changeText(screen.getByLabelText('Importe (€)'), '3,20');
+    await fireEvent.press(screen.getByText('Guardar'));
+    expect(await screen.findByText('Elige una categoría.')).toBeTruthy();
+    expect(crearGasto).not.toHaveBeenCalled();
+  });
+
+  test('editar un gasto existente', async () => {
+    const { editarGasto } = require('../../src/data/gastos');
+    await renderRouter(APP, { initialUrl: '/gasto/g1' });
+    expect(screen.getByDisplayValue('12,50')).toBeTruthy();
+    await fireEvent.changeText(screen.getByLabelText('Importe (€)'), '13,75');
+    await fireEvent.press(screen.getByText('Guardar'));
+    expect(editarGasto.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        gastoId: 'g1',
+        uid: 'ana',
+        datos: expect.objectContaining({ importe: 1375, categoriaId: 'luz', pagadoPor: 'blas', nota: 'Factura' }),
+      }),
+    );
+  });
+
+  test('eliminar pide confirmación', async () => {
+    const { Alert } = require('react-native');
+    const { borrarGasto } = require('../../src/data/gastos');
+    const alerta = jest.spyOn(Alert, 'alert').mockImplementation((titulo, mensaje, botones) => {
+      botones.find((b) => b.text === 'Eliminar').onPress();
+    });
+    await renderRouter(APP, { initialUrl: '/gasto/g1' });
+    await fireEvent.press(screen.getByText('Eliminar gasto'));
+    expect(alerta).toHaveBeenCalledWith('¿Eliminar este gasto?', expect.any(String), expect.any(Array));
+    expect(borrarGasto).toHaveBeenCalledWith(expect.objectContaining({ hogarId: 'h1', gastoId: 'g1' }));
+    alerta.mockRestore();
+  });
+
+  test('si el gasto ya no existe, lo dice', async () => {
+    await renderRouter(APP, { initialUrl: '/gasto/no-existe' });
+    expect(screen.getByText('Este gasto ya no existe')).toBeTruthy();
   });
 });

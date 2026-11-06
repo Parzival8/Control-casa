@@ -88,3 +88,25 @@ export function nombreMes(mes) {
 export function mesActual(hoy = new Date()) {
   return fechaAISO(hoy).slice(0, 7);
 }
+
+/**
+ * Céntimos a texto editable, sin puntos de miles: 123456 -> "1234,56".
+ * Es lo que se pone en el campo de importe al editar un gasto.
+ * @param {number|null} centimos
+ * @returns {string}
+ */
+export function centimosATexto(centimos) {
+  if (!Number.isInteger(centimos)) return '';
+  const euros = Math.floor(centimos / 100);
+  return `${euros},${String(centimos % 100).padStart(2, '0')}`;
+}
+
+/**
+ * "2026-11-06" -> Date (a las 12:00 locales, para evitar saltos de día).
+ * @param {string} iso
+ * @returns {Date}
+ */
+export function isoAFecha(iso) {
+  const [a, m, d] = iso.split('-').map(Number);
+  return new Date(a, m - 1, d, 12);
+}

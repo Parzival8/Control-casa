@@ -246,7 +246,8 @@ service cloud.firestore {
             && esTexto(d.categoriaId, 1, 100)
             && esFecha(d.fecha)
             && esTexto(d.nota, 0, 200)
-            && esTexto(d.pagadoPor, 1, 128)
+            // Opcional: null = "sin indicar".
+            && (d.pagadoPor == null || esTexto(d.pagadoPor, 1, 128))
             && d.editadoPor == uid()
             && d.editadoEn == request.time
             && (d.recurrenteId == null || esIdGeneradoPorRecurrente(d));
@@ -265,7 +266,8 @@ service cloud.firestore {
           && gastoValido()
           && request.resource.data.creadoPor == uid()
           && request.resource.data.creadoEn == request.time
-          && request.resource.data.pagadoPor in get(rutaHogar(hogarId)).data.miembros;
+          && (request.resource.data.pagadoPor == null
+              || request.resource.data.pagadoPor in get(rutaHogar(hogarId)).data.miembros);
         allow update: if esMiembro(hogarId)
           && gastoValido()
           && request.resource.data.creadoPor == resource.data.creadoPor
@@ -305,7 +307,7 @@ service cloud.firestore {
             && esTexto(d.categoriaId, 1, 100)
             && d.diaDelMes is int && d.diaDelMes >= 1 && d.diaDelMes <= 28
             && esTexto(d.nota, 0, 200)
-            && esTexto(d.pagadoPor, 1, 128)
+            && (d.pagadoPor == null || esTexto(d.pagadoPor, 1, 128))
             && d.activo is bool;
         }
 

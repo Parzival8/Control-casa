@@ -575,6 +575,22 @@ describe('gastos', () => {
     await assertSucceeds(setDoc(doc(como('blas'), 'hogares/h1/gastos/g2'), gastoValido('blas')));
   });
 
+  test('"pagado por" es opcional (null = sin indicar)', async () => {
+    await assertSucceeds(
+      setDoc(doc(como('blas'), 'hogares/h1/gastos/g2'), gastoValido('blas', { pagadoPor: null })),
+    );
+    await assertSucceeds(
+      setDoc(doc(como('blas'), 'hogares/h1/recurrentes/r1'), {
+        importe: 1000,
+        categoriaId: 'luz',
+        diaDelMes: 5,
+        nota: '',
+        pagadoPor: null,
+        activo: true,
+      }),
+    );
+  });
+
   test('puede indicar que lo pagó otro miembro, pero no un ajeno', async () => {
     const db = como('blas');
     await assertSucceeds(

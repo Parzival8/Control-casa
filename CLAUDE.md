@@ -19,6 +19,10 @@ El prototipo anterior en formato PWA (Vite) se eliminó en la Fase 0; sigue en e
 - EAS (`eas.json`, botón "Build from GitHub" en expo.dev) queda como alternativa y para el AAB de producción en la Fase 7.
 - **Unirse a un hogar sin Cloud Functions**: el código va en la propia escritura (`miembrosInfo.{uid}.codigoUsado`) y las reglas comprueban que es el vigente del hogar (`hogares/{id}.codigoInvitacion`), que la invitación existe, es de ese hogar y no ha caducado. Códigos de 8 caracteres sin 0/O/1/I.
 - Navegación: `app/index.js` redirige según sesión/hogar y `Stack.Protected` en `app/_layout.js` impide abrir pantallas de otro grupo. La pestaña de inicio es `/inicio`.
+- **"Pagado por" es opcional** (decisión del usuario, Fase 2): `pagadoPor` es un uid o `null` ("Sin indicar", lo predeterminado). En la Fase 4 hay que decidir con el usuario cómo cuentan en el reparto los gastos sin indicar.
+- Gastos sin conexión: crear/editar/borrar **no esperan** al servidor (Firestore los guarda en el móvil y los sincroniza); los errores del servidor se avisan con un `Alert`. La persistencia offline de Firestore viene activada por defecto en Android.
+- Las escrituras que cambian `users/{uid}.hogarId` se hacen después de que el servidor confirme el hogar (si no, la app escucharía el hogar antes de tener permiso).
+- Fecha del gasto: selector nativo `@react-native-community/datetimepicker` (botones Hoy/Ayer/Otro día).
 - Formato de moneda: `formatearImporte` lo hace a mano en vez de con `Intl.NumberFormat`, porque Hermes (el motor JS del móvil) no garantiza `useGrouping: 'always'` y en es-ES 4 cifras saldrían sin punto.
 
 ## Stack
@@ -32,9 +36,12 @@ El prototipo anterior en formato PWA (Vite) se eliminó en la Fase 0; sigue en e
 ## Arquitectura
 ```
 app/                     # pantallas (Expo Router)
-  (auth)/                # login, registro
+  index.js               # entrada: redirige según sesión y hogar
+  (auth)/                # login, registro, recuperar contraseña
   (hogar)/               # crear hogar o unirse con código
-  (tabs)/                # inicio, estadísticas, categorías, ajustes
+  (app)/                 # con hogar: escucha hogar y categorías (contexto)
+    (tabs)/              # inicio, estadísticas, categorías, ajustes
+    gasto/               # nuevo.js, [id].js (editar/eliminar)
 src/
   data/                  # TODO el acceso a Firebase vive aquí
     auth.js  hogares.js  gastos.js  categorias.js  recurrentes.js
