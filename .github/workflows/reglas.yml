@@ -1,0 +1,65 @@
+# Publica las reglas de seguridad (firestore.rules) en Firebase automáticamente
+# cada vez que cambian en main. Antes de publicar, pasa todos sus tests con el
+# emulador: si alguno falla, NO se publica nada.
+#
+# Requisito: secreto del repositorio FIREBASE_CUENTA_SERVICIO con el JSON de una
+# cuenta de servicio de Google Cloud que SOLO tenga estos roles:
+#   - Administrador de reglas de Firebase (roles/firebaserules.admin)
+#   - Consumidor de Service Usage (roles/serviceusage.serviceUsageConsumer)
+# Mientras el secreto no exista, el paso de publicar se salta sin error.
+
+name: Publicar reglas
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - firestore.rules
+      - firebase.json
+      - .github/workflows/reglas.yml
+  workflow_dispatch:
+
+concurrency:
+  group: reglas
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar Java 21 (para el emulador de Firebase)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Tests de las reglas (si fallan, no se publica)
+        run: npm run test:rules
+
+      - name: Publicar las reglas en Firebase
+        env:
+          FIREBASE_CUENTA_SERVICIO: ${{ secrets.FIREBASE_CUENTA_SERVICIO }}
+        run: |
+          if [ -z "$FIREBASE_CUENTA_SERVICIO" ]; then
+            echo "::warning::Falta el secreto FIREBASE_CUENTA_SERVICIO: las reglas NO se han publicado."
+            exit 0
+          fi
+          # La llave se escribe fuera del repositorio y se borra al terminar.
+          LLAVE="$RUNNER_TEMP/cuenta-servicio.json"
+          printf '%s' "$FIREBASE_CUENTA_SERVICIO" > "$LLAVE"
+          trap 'rm -f "$LLAVE"' EXIT
+          GOOGLE_APPLICATION_CREDENTIALS="$LLAVE" npx firebase deploy \
+            --only firestore:rules --project control-casa-7df4f --non-interactive
