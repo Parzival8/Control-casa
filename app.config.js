@@ -49,6 +49,9 @@ module.exports = {
       typedRoutes: false,
     },
     extra: {
+      // Número de compilación de GitHub Actions (o "local"). Se muestra en la
+      // app para saber qué APK tiene instalado cada móvil.
+      compilacion: process.env.NUMERO_COMPILACION ?? 'local',
       eas: {
         projectId: 'a8fe5364-9e2b-4434-86f9-c2f05bd2f145',
       },

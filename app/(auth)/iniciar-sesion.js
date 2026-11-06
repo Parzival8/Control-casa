@@ -6,6 +6,7 @@ import { CampoTexto } from '../../src/components/CampoTexto';
 import { MensajeError } from '../../src/components/MensajeError';
 import { Pantalla } from '../../src/components/Pantalla';
 import { Titulo } from '../../src/components/Titulo';
+import { Version } from '../../src/components/Version';
 import { iniciarSesion } from '../../src/data/auth';
 import { mensajeDeError } from '../../src/utils/errores';
 import { validarInicioSesion } from '../../src/utils/validacion';
@@ -60,6 +61,7 @@ export default function IniciarSesion() {
         variante="enlace"
         onPress={() => router.push('/recuperar')}
       />
+      <Version />
     </Pantalla>
   );
 }

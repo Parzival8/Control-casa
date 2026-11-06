@@ -137,24 +137,36 @@ describe('con hogar', () => {
   test('si el hogar ya no existe, lo explica', async () => {
     falso.hogar = null;
     await renderRouter(APP, { initialUrl: '/' });
-    expect(screen.getByText('Ya no estás en este hogar')).toBeTruthy();
+    expect(screen.getByText('No se puede abrir el hogar')).toBeTruthy();
+    expect(screen.getByText('Detalle: el hogar no existe')).toBeTruthy();
+  });
+
+  test('Ajustes muestra la versión de la app', async () => {
+    await renderRouter(APP, { initialUrl: '/ajustes' });
+    expect(screen.getByText(/^Versión .* · compilación /)).toBeTruthy();
   });
 
   test('un "sin permiso" puntual (recién creado) se reintenta antes de rendirse', async () => {
     falso.errorHogar = { code: 'firestore/permission-denied' };
     await renderRouter(APP, { initialUrl: '/' });
     // Primer error: aún no muestra el aviso, sigue esperando.
-    expect(screen.queryByText('Ya no estás en este hogar')).toBeNull();
+    expect(screen.queryByText('No se puede abrir el hogar')).toBeNull();
     // El servidor ya responde bien en el reintento.
     falso.errorHogar = null;
-    await act(() => jest.advanceTimersByTime(1600));
+    await act(() => jest.advanceTimersByTime(2100));
     expect(await screen.findByText('Gastos del mes')).toBeTruthy();
   });
 
   test('si el "sin permiso" se repite, entonces sí avisa', async () => {
     falso.errorHogar = { code: 'firestore/permission-denied' };
     await renderRouter(APP, { initialUrl: '/' });
-    for (let i = 0; i < 3; i++) await act(() => jest.advanceTimersByTime(1600));
-    expect(await screen.findByText('Ya no estás en este hogar')).toBeTruthy();
+    for (let i = 0; i < 5; i++) await act(() => jest.advanceTimersByTime(2100));
+    expect(await screen.findByText('No se puede abrir el hogar')).toBeTruthy();
+    expect(screen.getByText('Detalle: firestore/permission-denied')).toBeTruthy();
+
+    // "Reintentar" vuelve a intentarlo y, si ya hay acceso, entra.
+    falso.errorHogar = null;
+    await fireEvent.press(screen.getByText('Reintentar'));
+    expect(await screen.findByText('Gastos del mes')).toBeTruthy();
   });
 });

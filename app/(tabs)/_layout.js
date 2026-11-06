@@ -7,6 +7,7 @@ import { Boton } from '../../src/components/Boton';
 import { Cargando } from '../../src/components/Cargando';
 import { Pantalla } from '../../src/components/Pantalla';
 import { Titulo } from '../../src/components/Titulo';
+import { Version } from '../../src/components/Version';
 import { olvidarHogar } from '../../src/data/usuarios';
 import { useColores } from '../../src/hooks/useColores';
 import { useHogar } from '../../src/hooks/useHogar';
@@ -27,16 +28,26 @@ export default function LayoutPestanas() {
   // Espacio que ocupan los botones de Android (atrás, inicio…) bajo la app.
   const { bottom: margenInferior } = useSafeAreaInsets();
   const { usuario, perfil } = useSesion();
-  const { hogar, cargando, sinAcceso } = useHogar(perfil?.hogarId ?? null);
+  const { hogar, cargando, sinAcceso, motivo, reintentar } = useHogar(perfil?.hogarId ?? null);
 
   if (sinAcceso) {
     return (
       <Pantalla centrada>
         <Titulo
-          texto="Ya no estás en este hogar"
-          subtitulo="El hogar se ha borrado o te han quitado de él. Puedes crear uno nuevo o unirte a otro con un código."
+          texto="No se puede abrir el hogar"
+          subtitulo="Puede que el hogar se haya borrado o que te hayan quitado de él. Si acabas de crearlo o de unirte, prueba a reintentar."
         />
-        <Boton titulo="Entendido" onPress={() => olvidarHogar(usuario.uid)} />
+        <Boton titulo="Reintentar" onPress={reintentar} />
+        <Boton
+          titulo="Dejar este hogar y empezar de nuevo"
+          variante="secundario"
+          onPress={() => olvidarHogar(usuario.uid)}
+        />
+        {/* Detalle técnico para poder diagnosticar el problema. */}
+        <Text style={{ color: colores.textoSuave, fontSize: 13, textAlign: 'center' }}>
+          Detalle: {motivo}
+        </Text>
+        <Version />
       </Pantalla>
     );
   }
