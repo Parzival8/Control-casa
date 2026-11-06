@@ -53,6 +53,7 @@ firestore.rules          # reglas de seguridad (versionadas y con tests)
 Regla clave: **ninguna pantalla ni componente importa Firebase directamente**; siempre pasan por `src/data/`. Así el código de interfaz queda simple y la lógica de datos se puede probar y cambiar.
 
 ## Convenciones
+- **Hablar SIEMPRE en español con el usuario** (todas las respuestas, explicaciones y preguntas), sin excepciones.
 - Idioma: **todo en español de España** (interfaz, comentarios, nombres de dominio como `gasto`, `categoria`, `importe`, `hogar`).
 - Moneda en euros, formato `1.234,56 €`, siempre con `formatearImporte` de `src/utils/formato.js`.
 - Fechas: guardar `YYYY-MM-DD`; mostrar `dd/mm/aaaa`.
