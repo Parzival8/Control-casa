@@ -305,13 +305,18 @@ service cloud.firestore {
         function recurrenteValido() {
           let d = request.resource.data;
           return tieneCampos(d, ['importe', 'categoriaId', 'diaDelMes', 'nota',
-                                 'pagadoPor', 'activo'])
+                                 'pagadoPor', 'activo', 'ultimoMesGenerado'])
             && esImporte(d.importe)
             && esTexto(d.categoriaId, 1, 100)
             && d.diaDelMes is int && d.diaDelMes >= 1 && d.diaDelMes <= 28
             && esTexto(d.nota, 0, 200)
             && (d.pagadoPor == null || esTexto(d.pagadoPor, 1, 128))
-            && d.activo is bool;
+            && d.activo is bool
+            // Último mes en que ya se apuntó ("YYYY-MM"), para no repetirlo
+            // aunque se borre el gasto generado. null si aún no se ha apuntado.
+            && (d.ultimoMesGenerado == null
+                || (d.ultimoMesGenerado is string
+                    && d.ultimoMesGenerado.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')));
         }
 
         allow read, delete: if esMiembro(hogarId);

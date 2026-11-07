@@ -24,6 +24,9 @@ El prototipo anterior en formato PWA (Vite) se eliminó en la Fase 0; sigue en e
 - Gastos sin conexión: crear/editar/borrar **no esperan** al servidor (Firestore los guarda en el móvil y los sincroniza); los errores del servidor se avisan con un `Alert`. La persistencia offline de Firestore viene activada por defecto en Android.
 - Las escrituras que cambian `users/{uid}.hogarId` se hacen después de que el servidor confirme el hogar (si no, la app escucharía el hogar antes de tener permiso).
 - Categorías (Fase 3): una categoría **con gastos solo se archiva**; sin gastos se puede eliminar (la app lo comprueba antes; las reglas permiten borrar a cualquier miembro). Las archivadas no se ofrecen al apuntar, pero los gastos antiguos las siguen mostrando.
+- **Gastos fijos** (Fase 5): se apuntan al abrir la app (y al volver a primer plano) cuando llega su día del mes; los meses que nadie abrió la app no se recuperan. Cada fijo guarda `ultimoMesGenerado` para no repetir aunque se borre el gasto. Se generan en una **transacción** (solo con conexión) con id determinista `{fijo}_{YYYY-MM}`; las reglas impiden sobrescribir un gasto ya generado. Si se edita un gasto generado y se cambia de mes, se desvincula (`recurrenteId: null`).
+- **Presupuestos**: tarjeta en Inicio; aviso (amarillo) desde el 80 % y superado (rojo) por encima del 100 %.
+- **Exportar CSV**: `;`, decimales con coma, UTF-8 con BOM, fechas dd/mm/aaaa, campos que empiezan por = + - @ se neutralizan. Archivo con `expo-file-system` (caché) y menú de compartir con `expo-sharing`.
 - Fecha del gasto: selector nativo `@react-native-community/datetimepicker` (botones Hoy/Ayer/Otro día).
 - Formato de moneda: `formatearImporte` lo hace a mano en vez de con `Intl.NumberFormat`, porque Hermes (el motor JS del móvil) no garantiza `useGrouping: 'always'` y en es-ES 4 cifras saldrían sin punto.
 
@@ -45,9 +48,11 @@ app/                     # pantallas (Expo Router)
     (tabs)/              # inicio, estadísticas, categorías, ajustes
     gasto/               # nuevo.js, [id].js (editar/eliminar)
     categoria/           # nueva.js, [id].js (editar/archivar/eliminar)
+    fijos/               # gastos fijos: index.js, nuevo.js, [id].js
+    exportar.js          # exportar a CSV y compartir
 src/
   data/                  # TODO el acceso a Firebase vive aquí
-    auth.js  hogares.js  gastos.js  categorias.js  recurrentes.js
+    auth.js  hogares.js  gastos.js  categorias.js  recurrentes.js  exportar.js
   components/            # piezas reutilizables
   hooks/                 # useHogar, useGastosDelMes, etc.
   utils/                 # formato de moneda y fechas, cálculos (puros y testeados)

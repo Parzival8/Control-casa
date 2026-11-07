@@ -587,6 +587,7 @@ describe('gastos', () => {
         nota: '',
         pagadoPor: null,
         activo: true,
+        ultimoMesGenerado: null,
       }),
     );
   });
@@ -652,6 +653,45 @@ describe('gastos', () => {
     const fijo = gastoValido('blas', { recurrenteId: 'alquiler', fecha: '2026-11-01' });
     await assertSucceeds(setDoc(doc(db, 'hogares/h1/gastos/alquiler_2026-11'), fijo));
     await assertFails(setDoc(doc(db, 'hogares/h1/gastos/otro-id'), fijo));
+    // Cambiarlo de mes solo es válido si se desvincula del fijo.
+    const cambio = { fecha: '2026-12-01', editadoPor: 'blas', editadoEn: serverTimestamp() };
+    await assertFails(updateDoc(doc(db, 'hogares/h1/gastos/alquiler_2026-11'), cambio));
+    await assertSucceeds(
+      updateDoc(doc(db, 'hogares/h1/gastos/alquiler_2026-11'), { ...cambio, recurrenteId: null }),
+    );
+  });
+});
+
+describe('gastos fijos: generación sin duplicados', () => {
+  beforeEach(() => sembrar());
+
+  /** Lo que hace la app al abrirse: crea el gasto del mes y marca el mes. */
+  function generar(db, uid) {
+    const lote = writeBatch(db);
+    lote.set(
+      doc(db, 'hogares/h1/gastos/alquiler_2026-11'),
+      gastoValido(uid, { recurrenteId: 'alquiler', fecha: '2026-11-01', pagadoPor: 'ana' }),
+    );
+    lote.update(doc(db, 'hogares/h1/recurrentes/alquiler'), { ultimoMesGenerado: '2026-11' });
+    return lote.commit();
+  }
+
+  test('el segundo miembro no puede sobrescribir el gasto ya generado', async () => {
+    await entorno.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'hogares/h1/recurrentes/alquiler'), {
+        importe: 70000,
+        categoriaId: 'hipoteca',
+        diaDelMes: 1,
+        nota: 'Alquiler',
+        pagadoPor: 'ana',
+        activo: true,
+        ultimoMesGenerado: null,
+      });
+    });
+    await assertSucceeds(generar(como('ana'), 'ana'));
+    // Si Blas lo intenta a la vez, para Firestore es una "actualización" con
+    // otro creadoPor: las reglas lo rechazan, así que no se duplica ni se pisa.
+    await assertFails(generar(como('blas'), 'blas'));
   });
 });
 
@@ -699,8 +739,15 @@ describe('categorías y recurrentes', () => {
       nota: 'Alquiler',
       pagadoPor: 'ana',
       activo: true,
+      ultimoMesGenerado: null,
     };
     await assertSucceeds(setDoc(doc(db, 'hogares/h1/recurrentes/alquiler'), fijo));
+    await assertSucceeds(
+      updateDoc(doc(db, 'hogares/h1/recurrentes/alquiler'), { ultimoMesGenerado: '2026-11' }),
+    );
+    await assertFails(
+      updateDoc(doc(db, 'hogares/h1/recurrentes/alquiler'), { ultimoMesGenerado: '2026-13' }),
+    );
     await assertFails(setDoc(doc(db, 'hogares/h1/recurrentes/mal'), { ...fijo, diaDelMes: 31 }));
     await assertFails(setDoc(doc(como('carla'), 'hogares/h1/recurrentes/x'), fijo));
   });

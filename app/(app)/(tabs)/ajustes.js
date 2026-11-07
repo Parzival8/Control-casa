@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { Alert, StyleSheet, Text } from 'react-native';
 
 import { Boton } from '../../../src/components/Boton';
@@ -12,6 +13,7 @@ import { useSesion } from '../../../src/hooks/useSesion';
 import { listaMiembros } from '../../../src/utils/textoInvitacion';
 
 export default function Ajustes() {
+  const router = useRouter();
   const colores = useColores();
   const hogar = useHogarActual();
   const { usuario, perfil } = useSesion();
@@ -45,6 +47,11 @@ export default function Ajustes() {
       </Tarjeta>
 
       <TarjetaInvitacion hogar={hogar} uid={usuario.uid} />
+
+      <Tarjeta titulo="Herramientas">
+        <Boton titulo="🔁  Gastos fijos" variante="secundario" onPress={() => router.push('/fijos')} />
+        <Boton titulo="📤  Exportar a Excel" variante="secundario" onPress={() => router.push('/exportar')} />
+      </Tarjeta>
 
       <Boton titulo="Cerrar sesión" variante="secundario" onPress={confirmarCierre} />
       <Version />

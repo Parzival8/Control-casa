@@ -20,6 +20,7 @@ import {
 } from '@react-native-firebase/firestore';
 
 import { rangoDelMes } from '../utils/meses';
+import { recurrenteIdTrasEditar } from '../utils/recurrentes';
 
 /** @typedef {import('../utils/gastos').Gasto} Gasto */
 
@@ -86,12 +87,16 @@ export function crearGasto({ hogarId, uid, datos, alFallar }) {
 /**
  * Modifica un gasto (cualquier miembro puede).
  * @param {{ hogarId: string, gastoId: string, uid: string, datos: DatosGasto,
- *           alFallar?: (e: Error) => void }} p
+ *           recurrenteId?: string|null, alFallar?: (e: Error) => void }} p
+ *   recurrenteId: el del gasto si lo generó un gasto fijo.
  */
-export function editarGasto({ hogarId, gastoId, uid, datos, alFallar }) {
+export function editarGasto({ hogarId, gastoId, uid, datos, recurrenteId = null, alFallar }) {
   sinEsperar(
     updateDoc(doc(coleccionGastos(hogarId), gastoId), {
       ...limpiar(datos),
+      // Si un gasto generado por un fijo se cambia a otro mes, deja de estar
+      // ligado al fijo (su id ya no corresponde a ese mes).
+      recurrenteId: recurrenteIdTrasEditar(gastoId, recurrenteId, datos.fecha),
       editadoPor: uid,
       editadoEn: serverTimestamp(),
     }),

@@ -11,6 +11,7 @@ import { Version } from '../../src/components/Version';
 import { olvidarHogar } from '../../src/data/usuarios';
 import { useCategoriasHogar } from '../../src/hooks/useCategoriasHogar';
 import { useColores } from '../../src/hooks/useColores';
+import { useGenerarGastosFijos } from '../../src/hooks/useGenerarGastosFijos';
 import { useHogar } from '../../src/hooks/useHogar';
 import { ProveedorHogar } from '../../src/hooks/useHogarActual';
 import { useSesion } from '../../src/hooks/useSesion';
@@ -21,6 +22,12 @@ export default function LayoutApp() {
   const hogarId = perfil?.hogarId ?? null;
   const { hogar, cargando, sinAcceso, motivo, reintentar } = useHogar(hogarId);
   const { categorias } = useCategoriasHogar(hogar ? hogarId : null);
+  // Al abrir la app se apuntan solos los gastos fijos que tocan este mes.
+  useGenerarGastosFijos({
+    hogarId: hogar ? hogarId : null,
+    uid: usuario?.uid ?? null,
+    miembros: hogar?.miembros ?? [],
+  });
 
   if (sinAcceso) {
     return (
@@ -60,6 +67,10 @@ export default function LayoutApp() {
         <Stack.Screen name="gasto/[id]" options={{ title: 'Editar gasto' }} />
         <Stack.Screen name="categoria/nueva" options={{ title: 'Nueva categoría' }} />
         <Stack.Screen name="categoria/[id]" options={{ title: 'Editar categoría' }} />
+        <Stack.Screen name="fijos/index" options={{ title: 'Gastos fijos' }} />
+        <Stack.Screen name="fijos/nuevo" options={{ title: 'Nuevo gasto fijo' }} />
+        <Stack.Screen name="fijos/[id]" options={{ title: 'Editar gasto fijo' }} />
+        <Stack.Screen name="exportar" options={{ title: 'Exportar a Excel' }} />
       </Stack>
     </ProveedorHogar>
   );

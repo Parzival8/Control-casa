@@ -5,7 +5,7 @@ import { act, fireEvent, renderRouter, screen, waitFor } from 'expo-router/testi
 import path from 'path';
 
 // Estado "falso" de Firebase que cada test ajusta.
-const falso = { usuario: null, perfil: null, hogar: null, errorHogar: null, gastos: [] };
+const falso = { usuario: null, perfil: null, hogar: null, errorHogar: null, gastos: [], recurrentes: [] };
 
 jest.mock('../../src/data/auth', () => ({
   escucharSesion: (cb) => {
@@ -72,6 +72,22 @@ jest.mock('../../src/data/categorias', () => ({
   },
 }));
 
+jest.mock('../../src/data/recurrentes', () => ({
+  escucharRecurrentes: (hogarId, ok) => {
+    ok(falso.recurrentes);
+    return () => {};
+  },
+  generarGastosFijos: jest.fn(() => Promise.resolve(0)),
+  crearRecurrente: jest.fn(() => 'nuevo'),
+  editarRecurrente: jest.fn(),
+  borrarRecurrente: jest.fn(),
+}));
+
+jest.mock('../../src/data/exportar', () => ({
+  leerTodosLosGastos: jest.fn(() => Promise.resolve(falso.gastos)),
+  compartirCSV: jest.fn(() => Promise.resolve()),
+}));
+
 // Los gráficos dibujan con SVG nativo: en los tests se sustituyen por una caja vacía.
 jest.mock('react-native-gifted-charts', () => ({
   PieChart: () => null,
@@ -100,6 +116,7 @@ beforeEach(() => {
   falso.hogar = null;
   falso.errorHogar = null;
   falso.gastos = [];
+  falso.recurrentes = [];
   jest.clearAllMocks();
 });
 
@@ -476,5 +493,119 @@ describe('estadísticas', () => {
     // Reparto: 140 € entre 2 -> 70 cada uno; Blas pagó 40, debe 30 a Ana (que soy yo).
     expect(screen.getByText(`💸 Blas te debe 30,00${NBSP}€`)).toBeTruthy();
     expect(screen.getByText(/No cuentan 5,00.€ de gastos sin «Pagado por»/)).toBeTruthy();
+  });
+});
+
+describe('Fase 5: gastos fijos, presupuestos y exportar', () => {
+  const NBSP = ' ';
+  const { mesActual } = require('../../src/utils/formato');
+  const mes = mesActual();
+
+  beforeEach(() => {
+    falso.usuario = ana;
+    falso.perfil = { nombre: 'Ana', email: ana.email, hogarId: 'h1' };
+    falso.hogar = hogar;
+  });
+
+  test('al abrir la app se intentan apuntar los gastos fijos', async () => {
+    const { generarGastosFijos } = require('../../src/data/recurrentes');
+    await renderRouter(APP, { initialUrl: '/' });
+    expect(generarGastosFijos).toHaveBeenCalledWith(
+      expect.objectContaining({ hogarId: 'h1', uid: 'ana', miembros: ['ana', 'blas'] }),
+    );
+  });
+
+  test('desde Ajustes se llega a los gastos fijos y se crea uno', async () => {
+    const { crearRecurrente } = require('../../src/data/recurrentes');
+    const app = await renderRouter(APP, { initialUrl: '/ajustes' });
+    await fireEvent.press(screen.getByText('🔁  Gastos fijos'));
+    await waitFor(() => expect(app.getPathname()).toBe('/fijos'));
+    expect(screen.getByText(/Aún no hay gastos fijos/)).toBeTruthy();
+
+    await fireEvent.press(screen.getByText('+  Nuevo gasto fijo'));
+    await waitFor(() => expect(app.getPathname()).toBe('/fijos/nuevo'));
+    await fireEvent.changeText(screen.getByLabelText('Importe (€)'), '700');
+    await fireEvent.changeText(screen.getByLabelText('Día del mes (1 a 28)'), '5');
+    await fireEvent.press(screen.getByLabelText('Luz'));
+    await fireEvent.changeText(screen.getByLabelText('Nota (opcional)'), 'Alquiler');
+    await fireEvent.press(screen.getByText('Guardar'));
+    expect(crearRecurrente).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hogarId: 'h1',
+        datos: expect.objectContaining({
+          importe: 70000,
+          diaDelMes: 5,
+          categoriaId: 'luz',
+          nota: 'Alquiler',
+          pagadoPor: null,
+          activo: true,
+        }),
+      }),
+    );
+  });
+
+  test('un día fuera de 1-28 no se acepta', async () => {
+    const { crearRecurrente } = require('../../src/data/recurrentes');
+    await renderRouter(APP, { initialUrl: '/fijos/nuevo' });
+    await fireEvent.changeText(screen.getByLabelText('Importe (€)'), '10');
+    await fireEvent.changeText(screen.getByLabelText('Día del mes (1 a 28)'), '31');
+    await fireEvent.press(screen.getByLabelText('Luz'));
+    await fireEvent.press(screen.getByText('Guardar'));
+    expect(await screen.findByText('El día debe estar entre 1 y 28.')).toBeTruthy();
+    expect(crearRecurrente).not.toHaveBeenCalled();
+  });
+
+  test('la lista muestra los fijos con su día', async () => {
+    falso.recurrentes = [
+      { id: 'r1', importe: 70000, categoriaId: 'luz', diaDelMes: 1, nota: 'Alquiler', pagadoPor: null, activo: true, ultimoMesGenerado: null },
+      { id: 'r2', importe: 3000, categoriaId: 'luz', diaDelMes: 10, nota: 'Internet', pagadoPor: null, activo: false, ultimoMesGenerado: null },
+    ];
+    await renderRouter(APP, { initialUrl: '/fijos' });
+    expect(screen.getByText('Alquiler')).toBeTruthy();
+    expect(screen.getByText('Día 1 de cada mes')).toBeTruthy();
+    expect(screen.getByText('Día 10 de cada mes · en pausa')).toBeTruthy();
+  });
+
+  test('presupuestos: aviso y superado en Inicio', async () => {
+    const categorias = require('../../src/data/categorias');
+    const original = categorias.escucharCategorias;
+    categorias.escucharCategorias = (hogarId, ok) => {
+      ok([
+        { id: 'luz', nombre: 'Luz', icono: '💡', color: '#f59e0b', archivada: false, presupuestoMensual: 5000 },
+        { id: 'supermercado', nombre: 'Supermercado', icono: '🛒', color: '#22c55e', archivada: false, presupuestoMensual: 10000 },
+      ]);
+      return () => {};
+    };
+    const g = (id, categoriaId, importe) => ({
+      id, importe, categoriaId, fecha: `${mes}-01`, nota: '', pagadoPor: null,
+      creadoPor: 'ana', editadoPor: 'ana', recurrenteId: null, creadoEn: null,
+    });
+    falso.gastos = [g('a', 'luz', 6000), g('b', 'supermercado', 8500)];
+    await renderRouter(APP, { initialUrl: '/' });
+    expect(screen.getByText('Presupuestos del mes')).toBeTruthy();
+    expect(screen.getByText(`120 % · Superado en 10,00${NBSP}€`)).toBeTruthy();
+    expect(screen.getByText(`85 % · Quedan 15,00${NBSP}€`)).toBeTruthy();
+    categorias.escucharCategorias = original;
+  });
+
+  test('exportar un mes genera el CSV y abre compartir', async () => {
+    const { compartirCSV } = require('../../src/data/exportar');
+    falso.gastos = [
+      { id: 'a', importe: 1250, categoriaId: 'luz', fecha: `${mes}-02`, nota: 'Factura', pagadoPor: 'blas', creadoPor: 'ana' },
+    ];
+    await renderRouter(APP, { initialUrl: '/exportar' });
+    await fireEvent.press(screen.getByText('Exportar este mes'));
+    await waitFor(() => expect(compartirCSV).toHaveBeenCalled());
+    const [nombre, contenido] = compartirCSV.mock.calls[0];
+    expect(nombre).toBe(`control-casa_casa_${mes}.csv`);
+    expect(contenido).toContain(';Luz;Factura;12,50;Blas;Ana');
+  });
+
+  test('exportar sin gastos avisa y no comparte nada', async () => {
+    const { compartirCSV } = require('../../src/data/exportar');
+    await renderRouter(APP, { initialUrl: '/exportar' });
+    await fireEvent.press(screen.getByText('Exportar todos los gastos'));
+    expect(await screen.findByText('Todavía no hay gastos que exportar.')).toBeTruthy();
+    expect(compartirCSV).not.toHaveBeenCalled();
   });
 });
