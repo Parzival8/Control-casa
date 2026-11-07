@@ -12,6 +12,7 @@ import { MensajeError } from '../../../src/components/MensajeError';
 import { ResumenCategorias } from '../../../src/components/ResumenCategorias';
 import { SelectorMes } from '../../../src/components/SelectorMes';
 import { TarjetaInvitacion } from '../../../src/components/TarjetaInvitacion';
+import { TarjetaPresupuestos } from '../../../src/components/TarjetaPresupuestos';
 import { useColores } from '../../../src/hooks/useColores';
 import { useGastosDelMes } from '../../../src/hooks/useGastosDelMes';
 import { useCategorias, useHogarActual } from '../../../src/hooks/useHogarActual';
@@ -19,6 +20,7 @@ import { useSesion } from '../../../src/hooks/useSesion';
 import { mensajeDeError } from '../../../src/utils/errores';
 import { formatearImporte, mesActual } from '../../../src/utils/formato';
 import { totalCentimos } from '../../../src/utils/gastos';
+import { estadoPresupuestos } from '../../../src/utils/presupuestos';
 import { filtrarGastos, hayFiltros, resumenPorCategoria } from '../../../src/utils/resumen';
 import { listaMiembros } from '../../../src/utils/textoInvitacion';
 
@@ -54,6 +56,7 @@ export default function Inicio() {
         </Text>
       </View>
       <MensajeError mensaje={error ? mensajeDeError(error) : null} />
+      <TarjetaPresupuestos estados={estadoPresupuestos(gastos, categorias)} />
       <ResumenCategorias
         lineas={resumen}
         seleccionada={filtros.categoriaId}

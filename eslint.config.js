@@ -11,7 +11,18 @@ module.exports = defineConfig([
     // Los tests usan las variables globales de Jest (describe, test, expect…).
     files: ['**/*.test.js'],
     languageOptions: {
-      globals: { describe: 'readonly', test: 'readonly', expect: 'readonly' },
+      globals: {
+        describe: 'readonly',
+        test: 'readonly',
+        expect: 'readonly',
+        jest: 'readonly',
+        beforeAll: 'readonly',
+        beforeEach: 'readonly',
+        afterAll: 'readonly',
+        afterEach: 'readonly',
+        __dirname: 'readonly',
+        require: 'readonly',
+      },
     },
   },
 ]);

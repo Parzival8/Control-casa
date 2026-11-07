@@ -37,7 +37,14 @@ export default function EditarGasto() {
   const avisar = (e) => Alert.alert('No se ha podido guardar el cambio', mensajeDeError(e));
 
   function guardar(datos) {
-    editarGasto({ hogarId: hogar.id, gastoId: gasto.id, uid: usuario.uid, datos, alFallar: avisar });
+    editarGasto({
+      hogarId: hogar.id,
+      gastoId: gasto.id,
+      uid: usuario.uid,
+      datos,
+      recurrenteId: gasto.recurrenteId,
+      alFallar: avisar,
+    });
     router.back();
   }
 
