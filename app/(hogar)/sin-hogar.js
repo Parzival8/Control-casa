@@ -24,6 +24,11 @@ export default function SinHogar() {
         onPress={() => router.push('/unirse')}
       />
       <Boton titulo="Cerrar sesión" variante="enlace" onPress={cerrarSesion} />
+      <Boton
+        titulo="Eliminar mi cuenta"
+        variante="enlace"
+        onPress={() => router.push('/eliminar-cuenta')}
+      />
     </Pantalla>
   );
 }

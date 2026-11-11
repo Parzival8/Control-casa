@@ -40,7 +40,7 @@ export default function LayoutApp() {
         <Boton
           titulo="Dejar este hogar y empezar de nuevo"
           variante="secundario"
-          onPress={() => olvidarHogar(usuario.uid)}
+          onPress={() => olvidarHogar(usuario.uid, hogarId)}
         />
         {/* Detalle técnico para poder diagnosticar el problema. */}
         <Text style={{ color: colores.textoSuave, fontSize: 13, textAlign: 'center' }}>
@@ -71,6 +71,10 @@ export default function LayoutApp() {
         <Stack.Screen name="fijos/nuevo" options={{ title: 'Nuevo gasto fijo' }} />
         <Stack.Screen name="fijos/[id]" options={{ title: 'Editar gasto fijo' }} />
         <Stack.Screen name="exportar" options={{ title: 'Exportar a Excel' }} />
+        <Stack.Screen name="editar-nombre" options={{ title: 'Cambiar nombre' }} />
+        <Stack.Screen name="hogar/salir" options={{ title: 'Salir del hogar' }} />
+        <Stack.Screen name="hogar/borrar" options={{ title: 'Borrar el hogar' }} />
+        <Stack.Screen name="cuenta/eliminar" options={{ title: 'Eliminar mi cuenta' }} />
       </Stack>
     </ProveedorHogar>
   );

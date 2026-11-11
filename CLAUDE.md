@@ -27,6 +27,7 @@ El prototipo anterior en formato PWA (Vite) se eliminó en la Fase 0; sigue en e
 - **Gastos fijos** (Fase 5): se apuntan al abrir la app (y al volver a primer plano) cuando llega su día del mes; los meses que nadie abrió la app no se recuperan. Cada fijo guarda `ultimoMesGenerado` para no repetir aunque se borre el gasto. Se generan en una **transacción** (solo con conexión) con id determinista `{fijo}_{YYYY-MM}`; las reglas impiden sobrescribir un gasto ya generado. Si se edita un gasto generado y se cambia de mes, se desvincula (`recurrenteId: null`).
 - **Presupuestos**: tarjeta en Inicio; aviso (amarillo) desde el 80 % y superado (rojo) por encima del 100 %.
 - **Exportar CSV**: `;`, decimales con coma, UTF-8 con BOM, fechas dd/mm/aaaa, campos que empiezan por = + - @ se neutralizan. Archivo con `expo-file-system` (caché) y menú de compartir con `expo-sharing`.
+- **Gestión del hogar** (decisiones del usuario, Fase 6): si el **creador** se va (sale o elimina su cuenta) y quedan otros, **deja el hogar a otro miembro** (lo elige; se propone el más antiguo) que pasa a ser `creadoPor`; si está solo, para irse tiene que borrar el hogar. Al **salir o ser expulsado se conserva el nombre** en `miembrosInfo` (historial); solo al **eliminar la cuenta** se borra (también de los hogares anteriores, guardados en `users/{uid}.hogaresAnteriores`) y sus gastos muestran "Antiguo miembro". Borrar el hogar: doble confirmación (escribir su nombre + aviso) y se borran subcolecciones, invitación y hogar. Eliminar cuenta: pide la contraseña (reautenticación) y termina con `deleteUser`.
 - Fecha del gasto: selector nativo `@react-native-community/datetimepicker` (botones Hoy/Ayer/Otro día).
 - Formato de moneda: `formatearImporte` lo hace a mano en vez de con `Intl.NumberFormat`, porque Hermes (el motor JS del móvil) no garantiza `useGrouping: 'always'` y en es-ES 4 cifras saldrían sin punto.
 
@@ -50,9 +51,12 @@ app/                     # pantallas (Expo Router)
     categoria/           # nueva.js, [id].js (editar/archivar/eliminar)
     fijos/               # gastos fijos: index.js, nuevo.js, [id].js
     exportar.js          # exportar a CSV y compartir
+    editar-nombre.js     # nombre del hogar o propio
+    hogar/               # salir.js, borrar.js
+    cuenta/              # eliminar.js (también (hogar)/eliminar-cuenta.js)
 src/
   data/                  # TODO el acceso a Firebase vive aquí
-    auth.js  hogares.js  gastos.js  categorias.js  recurrentes.js  exportar.js
+    auth.js  hogares.js  gestionHogar.js  gastos.js  categorias.js  recurrentes.js  exportar.js
   components/            # piezas reutilizables
   hooks/                 # useHogar, useGastosDelMes, etc.
   utils/                 # formato de moneda y fechas, cálculos (puros y testeados)

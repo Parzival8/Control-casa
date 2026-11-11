@@ -23,6 +23,8 @@ const MENSAJES = {
   'auth/too-many-requests': 'Demasiados intentos. Espera unos minutos y vuelve a probar.',
   'auth/network-request-failed': 'No hay conexión a internet. Revísala y vuelve a probar.',
   'auth/operation-not-allowed': 'El inicio de sesión con email no está activado.',
+  'auth/requires-recent-login': 'Por seguridad, vuelve a escribir tu contraseña.',
+  'auth/missing-password': 'Escribe tu contraseña.',
   // Base de datos
   'firestore/permission-denied': 'No tienes permiso para hacer esto.',
   'firestore/unavailable': 'No hay conexión con el servidor. Revisa tu internet.',
