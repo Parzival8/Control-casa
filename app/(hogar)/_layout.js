@@ -18,6 +18,7 @@ export default function LayoutHogar() {
       <Stack.Screen name="sin-hogar" options={{ headerShown: false }} />
       <Stack.Screen name="crear-hogar" options={{ title: 'Crear hogar' }} />
       <Stack.Screen name="unirse" options={{ title: 'Unirme con código' }} />
+      <Stack.Screen name="eliminar-cuenta" options={{ title: 'Eliminar mi cuenta' }} />
     </Stack>
   );
 }

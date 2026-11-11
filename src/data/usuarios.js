@@ -1,6 +1,8 @@
 // Perfil de cada usuario: users/{uid} (ver ESPECIFICACION.md, sección 4).
 
 import {
+  arrayUnion,
+  deleteDoc,
   doc,
   getDocFromServer,
   getFirestore,
@@ -15,6 +17,7 @@ import {
  * @property {string} nombre
  * @property {string} email
  * @property {string|null} hogarId   Hogar al que pertenece, o null.
+ * @property {string[]} [hogaresAnteriores]  Hogares de los que salió.
  */
 
 /** Referencia a users/{uid}. */
@@ -66,9 +69,23 @@ export function escucharPerfil(uid, alCambiar, alFallar) {
 }
 
 /**
- * Quita el hogar del perfil (por ejemplo, si te han expulsado).
+ * Quita el hogar del perfil (por ejemplo, si te han expulsado o se ha borrado)
+ * y lo apunta en `hogaresAnteriores`: si algún día eliminas tu cuenta, se
+ * borrará tu nombre también de ese hogar.
+ * @param {string} uid
+ * @param {string|null} [hogarId]
+ */
+export async function olvidarHogar(uid, hogarId = null) {
+  await updateDoc(
+    refPerfil(uid),
+    hogarId ? { hogarId: null, hogaresAnteriores: arrayUnion(hogarId) } : { hogarId: null },
+  );
+}
+
+/**
+ * Borra el documento del perfil (al eliminar la cuenta).
  * @param {string} uid
  */
-export async function olvidarHogar(uid) {
-  await updateDoc(refPerfil(uid), { hogarId: null });
+export async function borrarPerfil(uid) {
+  await deleteDoc(refPerfil(uid));
 }

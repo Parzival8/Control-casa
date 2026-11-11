@@ -93,10 +93,14 @@ service cloud.firestore {
     match /users/{userId} {
       function perfilValido() {
         let d = request.resource.data;
-        return tieneCampos(d, ['nombre', 'email', 'hogarId', 'creadoEn'])
+        return d.keys().hasAll(['nombre', 'email', 'hogarId', 'creadoEn'])
+          && d.keys().hasOnly(['nombre', 'email', 'hogarId', 'creadoEn', 'hogaresAnteriores'])
           && esTexto(d.nombre, 1, 50)
           && d.email == request.auth.token.email
-          && (d.hogarId == null || d.hogarId is string);
+          && (d.hogarId == null || d.hogarId is string)
+          // Hogares de los que salió: al eliminar la cuenta se borra su nombre de ellos.
+          && (!('hogaresAnteriores' in d) || (d.hogaresAnteriores is list
+                                              && d.hogaresAnteriores.size() <= 50));
       }
 
       allow read, delete: if autenticado() && uid() == userId;
@@ -185,13 +189,46 @@ service cloud.firestore {
           && invitacionValida(info.codigoUsado);
       }
 
-      // Un miembro se quita a sí mismo.
+      // Un miembro (que no es el creador) se quita a sí mismo. Puede dejar su
+      // nombre en miembrosInfo (para el historial) o borrarlo.
       function esSalir() {
         return uid() in resource.data.miembros
+          && uid() != resource.data.creadoPor
           && cambiaSolo(['miembros', 'miembrosInfo'])
           && miembrosDespues() == miembrosAntes().difference([uid()].toSet())
           && request.resource.data.miembros.size() == resource.data.miembros.size() - 1
           && infoCambiaSolo([uid()]);
+      }
+
+      // El creador sale y deja el hogar a otro miembro que se queda
+      // (decisión del usuario, Fase 6). Si es el único miembro, no puede salir:
+      // tiene que borrar el hogar.
+      function esSalirComoCreador() {
+        return uid() == resource.data.creadoPor
+          && cambiaSolo(['miembros', 'miembrosInfo', 'creadoPor'])
+          && miembrosDespues() == miembrosAntes().difference([uid()].toSet())
+          && request.resource.data.miembros.size() == resource.data.miembros.size() - 1
+          && request.resource.data.miembros.size() > 0
+          && request.resource.data.creadoPor in request.resource.data.miembros
+          && infoCambiaSolo([uid()]);
+      }
+
+      // Un miembro cambia su propio nombre visible.
+      function esCambiarMiNombre() {
+        return uid() in resource.data.miembros
+          && cambiaSolo(['miembrosInfo'])
+          && infoCambiaSolo([uid()])
+          && esInfoMiembro(request.resource.data.miembrosInfo[uid()]);
+      }
+
+      // Alguien que ya no es miembro borra su nombre (al eliminar su cuenta),
+      // sin tocar nada más.
+      function esBorrarMiNombre() {
+        return !(uid() in resource.data.miembros)
+          && uid() in resource.data.miembrosInfo
+          && cambiaSolo(['miembrosInfo'])
+          && infoCambiaSolo([uid()])
+          && !(uid() in request.resource.data.miembrosInfo);
       }
 
       // El creador quita a otros miembros (nunca a sí mismo por esta vía).
@@ -230,7 +267,9 @@ service cloud.firestore {
         && getAfter(rutaInvitacion(request.resource.data.codigoInvitacion)).data.hogarId == hogarId;
 
       allow update: if autenticado()
-        && (esRenombrar() || esUnirse() || esSalir() || esExpulsar() || esRegenerarCodigo());
+        && (esRenombrar() || esUnirse() || esSalir() || esSalirComoCreador()
+            || esExpulsar() || esRegenerarCodigo() || esCambiarMiNombre()
+            || esBorrarMiNombre());
 
       allow delete: if autenticado() && resource.data.creadoPor == uid();
 

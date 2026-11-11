@@ -568,6 +568,110 @@ describe('salir, expulsar, regenerar y borrar', () => {
   });
 });
 
+describe('Fase 6: salir, traspasar, nombres y cuenta', () => {
+  beforeEach(() => sembrar());
+
+  test('el creador no puede salir sin dejar el hogar a otro', async () => {
+    await assertFails(
+      updateDoc(doc(como('ana'), 'hogares/h1'), { miembros: arrayRemove('ana') }),
+    );
+  });
+
+  test('el creador sale dejando el hogar a otro miembro', async () => {
+    await assertSucceeds(
+      updateDoc(doc(como('ana'), 'hogares/h1'), { miembros: arrayRemove('ana'), creadoPor: 'blas' }),
+    );
+    // Blas ya tiene los permisos de creador: puede regenerar el código.
+    const db = como('blas');
+    const lote = writeBatch(db);
+    lote.update(doc(db, 'hogares/h1'), { codigoInvitacion: CODIGO_NUEVO });
+    lote.set(doc(db, `invitaciones/${CODIGO_NUEVO}`), { hogarId: 'h1', creadoPor: 'blas', expiraEn: enDias(7) });
+    lote.delete(doc(db, `invitaciones/${CODIGO}`));
+    await assertSucceeds(lote.commit());
+  });
+
+  test('no se puede dejar el hogar a alguien que no es miembro', async () => {
+    await assertFails(
+      updateDoc(doc(como('ana'), 'hogares/h1'), { miembros: arrayRemove('ana'), creadoPor: 'carla' }),
+    );
+  });
+
+  test('si el creador es el único miembro no puede salir (debe borrar el hogar)', async () => {
+    await entorno.clearFirestore();
+    await sembrar({ miembros: ['ana'] });
+    await assertFails(
+      updateDoc(doc(como('ana'), 'hogares/h1'), { miembros: [], creadoPor: 'ana' }),
+    );
+  });
+
+  test('un miembro normal no puede traspasar el hogar', async () => {
+    await assertFails(updateDoc(doc(como('blas'), 'hogares/h1'), { creadoPor: 'blas' }));
+    await assertFails(
+      updateDoc(doc(como('blas'), 'hogares/h1'), { miembros: arrayRemove('blas'), creadoPor: 'blas' }),
+    );
+  });
+
+  test('al salir puede conservar su nombre (para el historial)', async () => {
+    await assertSucceeds(
+      updateDoc(doc(como('blas'), 'hogares/h1'), { miembros: arrayRemove('blas') }),
+    );
+  });
+
+  test('cada miembro cambia solo su propio nombre', async () => {
+    await assertSucceeds(
+      updateDoc(doc(como('blas'), 'hogares/h1'), { 'miembrosInfo.blas': { nombre: 'Blas M.' } }),
+    );
+    await assertFails(
+      updateDoc(doc(como('blas'), 'hogares/h1'), { 'miembrosInfo.ana': { nombre: 'Fea' } }),
+    );
+    await assertFails(
+      updateDoc(doc(como('blas'), 'hogares/h1'), { 'miembrosInfo.blas': { nombre: '' } }),
+    );
+  });
+
+  test('un antiguo miembro puede borrar su nombre y nada más', async () => {
+    await assertSucceeds(
+      updateDoc(doc(como('blas'), 'hogares/h1'), { miembros: arrayRemove('blas') }),
+    );
+    await assertFails(
+      updateDoc(doc(como('blas'), 'hogares/h1'), { 'miembrosInfo.ana': deleteField() }),
+    );
+    await assertFails(
+      updateDoc(doc(como('blas'), 'hogares/h1'), { 'miembrosInfo.blas': deleteField(), nombre: 'X' }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(como('blas'), 'hogares/h1'), { 'miembrosInfo.blas': deleteField() }),
+    );
+    // Y sigue sin poder leer el hogar.
+    await assertFails(getDoc(doc(como('blas'), 'hogares/h1')));
+  });
+
+  test('alguien que nunca estuvo no puede escribir nada, ni vacío', async () => {
+    await assertFails(
+      updateDoc(doc(como('carla'), 'hogares/h1'), { 'miembrosInfo.carla': deleteField() }),
+    );
+  });
+
+  test('el perfil guarda los hogares anteriores y se puede borrar', async () => {
+    await assertSucceeds(
+      updateDoc(doc(como('blas'), 'users/blas'), { hogarId: null, hogaresAnteriores: ['h1'] }),
+    );
+    await assertFails(updateDoc(doc(como('blas'), 'users/blas'), { hogaresAnteriores: 'h1' }));
+    await assertSucceeds(deleteDoc(doc(como('blas'), 'users/blas')));
+    await assertFails(deleteDoc(doc(como('blas'), 'users/ana')));
+  });
+
+  test('borrar el hogar entero: subcolecciones, invitación y hogar', async () => {
+    const db = como('ana');
+    const lote = writeBatch(db);
+    lote.delete(doc(db, 'hogares/h1/gastos/g1'));
+    lote.delete(doc(db, 'hogares/h1/categorias/luz'));
+    await assertSucceeds(lote.commit());
+    await assertSucceeds(deleteDoc(doc(db, `invitaciones/${CODIGO}`)));
+    await assertSucceeds(deleteDoc(doc(db, 'hogares/h1')));
+  });
+});
+
 describe('gastos', () => {
   beforeEach(() => sembrar());
 

@@ -16,6 +16,17 @@ jest.mock('../../src/data/auth', () => ({
   registrar: jest.fn(),
   cerrarSesion: jest.fn(),
   recuperarContrasena: jest.fn(() => Promise.resolve()),
+  eliminarCuenta: jest.fn(() => Promise.resolve()),
+  cambiarNombreCuenta: jest.fn(() => Promise.resolve()),
+}));
+
+jest.mock('../../src/data/gestionHogar', () => ({
+  cambiarNombreHogar: jest.fn(() => Promise.resolve()),
+  cambiarMiNombre: jest.fn(() => Promise.resolve()),
+  expulsarMiembro: jest.fn(() => Promise.resolve()),
+  salirDelHogar: jest.fn(() => Promise.resolve()),
+  borrarHogar: jest.fn(() => Promise.resolve()),
+  borrarMiNombreDeHogares: jest.fn(() => Promise.resolve()),
 }));
 
 jest.mock('../../src/data/usuarios', () => ({
@@ -607,5 +618,110 @@ describe('Fase 5: gastos fijos, presupuestos y exportar', () => {
     await fireEvent.press(screen.getByText('Exportar todos los gastos'));
     expect(await screen.findByText('Todavía no hay gastos que exportar.')).toBeTruthy();
     expect(compartirCSV).not.toHaveBeenCalled();
+  });
+});
+
+describe('Fase 6: gestión del hogar y de la cuenta', () => {
+  const { Alert } = require('react-native');
+  const datos = () => require('../../src/data/gestionHogar');
+  /** Pulsa el botón indicado del aviso de confirmación. */
+  const confirmarCon = (texto) =>
+    jest.spyOn(Alert, 'alert').mockImplementation((t, m, botones) => {
+      botones?.find((b) => b.text === texto)?.onPress?.();
+    });
+
+  beforeEach(() => {
+    falso.usuario = ana;
+    falso.perfil = { nombre: 'Ana', email: ana.email, hogarId: 'h1', hogaresAnteriores: ['viejo'] };
+    falso.hogar = hogar; // ana es la creadora; blas es miembro
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  test('el creador ve "Quitar" junto a los demás y puede expulsar', async () => {
+    confirmarCon('Quitar');
+    await renderRouter(APP, { initialUrl: '/ajustes' });
+    expect(screen.getAllByLabelText('Quitar')).toHaveLength(1); // no junto a sí mismo
+    await fireEvent.press(screen.getByLabelText('Quitar'));
+    expect(datos().expulsarMiembro).toHaveBeenCalledWith({ hogarId: 'h1', uidExpulsado: 'blas' });
+  });
+
+  test('un miembro normal no ve "Quitar" ni "Borrar el hogar"', async () => {
+    falso.usuario = { uid: 'blas', email: 'blas@ejemplo.com', nombre: 'Blas' };
+    falso.perfil = { nombre: 'Blas', email: 'blas@ejemplo.com', hogarId: 'h1' };
+    await renderRouter(APP, { initialUrl: '/ajustes' });
+    expect(screen.queryByLabelText('Quitar')).toBeNull();
+    expect(screen.queryByText('Borrar el hogar')).toBeNull();
+    expect(screen.getByText('Salir del hogar')).toBeTruthy();
+  });
+
+  test('el creador sale dejando el hogar al miembro elegido', async () => {
+    confirmarCon('Salir');
+    await renderRouter(APP, { initialUrl: '/hogar/salir' });
+    expect(screen.getByText('¿A quién dejas el hogar?')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Salir del hogar'));
+    expect(datos().salirDelHogar).toHaveBeenCalledWith({ hogarId: 'h1', uid: 'ana', sucesor: 'blas' });
+  });
+
+  test('un miembro normal sale sin traspasar nada', async () => {
+    confirmarCon('Salir');
+    falso.usuario = { uid: 'blas', email: 'blas@ejemplo.com', nombre: 'Blas' };
+    falso.perfil = { nombre: 'Blas', email: 'blas@ejemplo.com', hogarId: 'h1' };
+    await renderRouter(APP, { initialUrl: '/hogar/salir' });
+    expect(screen.queryByText('¿A quién dejas el hogar?')).toBeNull();
+    await fireEvent.press(screen.getByText('Salir del hogar'));
+    expect(datos().salirDelHogar).toHaveBeenCalledWith({ hogarId: 'h1', uid: 'blas', sucesor: null });
+  });
+
+  test('si el creador está solo, para salir tiene que borrar el hogar', async () => {
+    falso.hogar = { ...hogar, miembros: ['ana'] };
+    await renderRouter(APP, { initialUrl: '/hogar/salir' });
+    expect(screen.getByText(/Eres la única persona del hogar/)).toBeTruthy();
+  });
+
+  test('borrar el hogar exige escribir su nombre y confirmar', async () => {
+    confirmarCon('Borrar');
+    await renderRouter(APP, { initialUrl: '/hogar/borrar' });
+    await fireEvent.press(screen.getByText('Borrar el hogar'));
+    expect(datos().borrarHogar).not.toHaveBeenCalled(); // botón desactivado
+    await fireEvent.changeText(screen.getByLabelText('Escribe «Casa» para confirmar'), 'casa');
+    await fireEvent.press(screen.getByText('Borrar el hogar'));
+    await waitFor(() => expect(datos().borrarHogar).toHaveBeenCalled());
+  });
+
+  test('cambiar el nombre del hogar y el propio', async () => {
+    const app = await renderRouter(APP, { initialUrl: '/ajustes' });
+    await fireEvent.press(screen.getByLabelText('Cambiar nombre'));
+    await waitFor(() => expect(app.getPathname()).toBe('/editar-nombre'));
+    await fireEvent.changeText(screen.getByLabelText('Nombre del hogar'), 'Casa nueva');
+    await fireEvent.press(screen.getByText('Guardar'));
+    await waitFor(() =>
+      expect(datos().cambiarNombreHogar).toHaveBeenCalledWith({ hogarId: 'h1', nombre: 'Casa nueva' }),
+    );
+  });
+
+  test('eliminar la cuenta pide contraseña, quién hereda el hogar y confirmación', async () => {
+    const { eliminarCuenta } = require('../../src/data/auth');
+    confirmarCon('Eliminar mi cuenta');
+    await renderRouter(APP, { initialUrl: '/cuenta/eliminar' });
+    expect(screen.getByText('¿A quién dejas el hogar?')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Eliminar mi cuenta'));
+    expect(await screen.findByText('Escribe tu contraseña.')).toBeTruthy();
+    expect(eliminarCuenta).not.toHaveBeenCalled();
+
+    await fireEvent.changeText(screen.getByLabelText('Tu contraseña (para confirmar)'), 'secreta1');
+    await fireEvent.press(screen.getByText('Eliminar mi cuenta'));
+    await waitFor(() => expect(eliminarCuenta).toHaveBeenCalled());
+    expect(eliminarCuenta.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ contrasena: 'secreta1', sucesor: 'blas', hogar: expect.objectContaining({ id: 'h1' }) }),
+    );
+  });
+
+  test('sin hogar también se puede eliminar la cuenta', async () => {
+    falso.perfil = { nombre: 'Ana', email: ana.email, hogarId: null };
+    const app = await renderRouter(APP, { initialUrl: '/' });
+    await fireEvent.press(screen.getByText('Eliminar mi cuenta'));
+    await waitFor(() => expect(app.getPathname()).toBe('/eliminar-cuenta'));
+    expect(screen.queryByText('¿A quién dejas el hogar?')).toBeNull();
   });
 });
