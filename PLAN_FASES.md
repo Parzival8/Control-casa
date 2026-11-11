@@ -118,6 +118,8 @@ Las tareas marcadas con 👤 solo puede hacerlas el usuario (Claude Code no tien
 ---
 
 ## Fase 6: Gestión del hogar y de la cuenta
+
+> ✅ **Completada** (11/11/2026). Probada por el usuario con el APK compilación 24: cambiar nombres, expulsar (pierde el acceso al momento), volver a unirse, salir siendo creador traspasando el hogar, eliminar cuenta y borrar hogar. Decisiones del usuario: el creador deja el hogar a otro miembro; el nombre se conserva al salir o ser expulsado y solo se borra al eliminar la cuenta.
 **Tareas**
 - Pantalla Ajustes → Hogar: nombre, lista de miembros, código de invitación (compartir y regenerar).
 - Salir del hogar; el creador puede expulsar miembros y borrar el hogar (con doble confirmación).
