@@ -104,6 +104,8 @@ Las tareas marcadas con 👤 solo puede hacerlas el usuario (Claude Code no tien
 ---
 
 ## Fase 5: Gastos fijos, presupuestos y exportación
+
+> ✅ **Completada** (11/11/2026). Probada por el usuario con el APK compilación 22: gastos fijos (sin duplicados ni reaparecer al borrarlos), presupuestos con avisos y exportación a CSV.
 **Tareas**
 - Gastos recurrentes (CRUD en Ajustes) que se generan al abrir la app con **id determinista** `{recurrenteId}_{YYYY-MM}` para evitar duplicados.
 - Presupuesto mensual por categoría con aviso visual al pasar del 80 % y al superarlo.
